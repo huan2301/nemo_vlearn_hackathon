@@ -6,11 +6,10 @@
 
 | Thành viên | Mã học viên | Phụ trách chính | Tỷ lệ đóng góp |
 |---|---|---|---:|
-| Lê Đình Việt | 2A202601528 | Product owner: chốt lát cắt, evidence, AI Spec, quality bar và phối hợp kiểm thử | 25% |
-| Nguyễn Ngọc Huân | 2A202601164 | Điều phối tiến độ, phân công công việc, AI backend: API chatbot, Gemini, prompt, session và xử lý lỗi/fallback | 25% |
-| Data & retrieval: chuẩn hóa slide, tìm kiếm nội dung, citation và golden set | 25% |
+| Lê Đình Việt | 2A202601528 | Product owner: chốt lát cắt, evidence, AI Spec, quality bar và phối hợp kiểm thử, chuẩn hóa slide, tìm kiếm nội dung | 25% |
+| Nguyễn Ngọc Huân | 2A202601164 | Điều phối tiến độ, phân công công việc, AI backend: API chatbot, Groq, prompt, session và xử lý lỗi/fallback | 25% |
 | Vương Đức Thoại | 2A202601770 | Frontend: giao diện chatbot, slide PDF viewer, responsive và tích hợp API | 25% |
-| Quách Thanh Hưng| 2A202601532 | Chạy kiểm thử và tổng hợp kết quả, Thu thập Feedback người dùng, Viết Reflection | 25% |
+| Quách Thanh Hưng| 2A202601532 | Chạy kiểm thử và tổng hợp kết quả, Thu thập Feedback người dùng, Viết Reflection, golden set | 25% |
 | **Tổng** |  | **Cả nhóm cùng review, chạy thử và giải thích được phần được giao** | **100%** |
 
 Mỗi thành viên chịu trách nhiệm triển khai, kiểm tra và tạo commit cho phần được giao; đồng thời review chéo ít nhất một phần của thành viên khác trước khi demo.
