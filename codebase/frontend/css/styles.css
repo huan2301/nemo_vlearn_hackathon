@@ -1,0 +1,324 @@
+/* ===========================================================
+   AI Glossary Tutor — VLearn-style theme
+   Font: Be Vietnam Pro · palette: slate + red accent (matches VLearn dashboard)
+   =========================================================== */
+
+:root{
+  --ink:#0f172a;
+  --ink-soft:#475569;
+  --muted:#64748b;
+  --muted-2:#94a3b8;
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --border:#e2e8f0;
+  --border-soft:#eef1f6;
+
+  --red:#dc2626;
+  --red-soft:#fef2f2;
+  --navy:#0f172a;
+  --navy-soft:#eef1f8;
+
+  --green:#16a34a;
+  --green-soft:#f0fdf4;
+  --amber:#d97706;
+  --amber-soft:#fffbeb;
+
+  --radius-lg:20px;
+  --radius-md:14px;
+  --radius-sm:10px;
+  --shadow:0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.05);
+}
+
+[data-theme="dark"]{
+  --ink:#f1f5f9;
+  --ink-soft:#cbd5e1;
+  --muted:#94a3b8;
+  --muted-2:#64748b;
+  --bg:#0b1220;
+  --card:#131c2e;
+  --border:#243044;
+  --border-soft:#1b2740;
+  --navy-soft:#1a2338;
+  --red-soft:#2a1518;
+  --green-soft:#0f2318;
+  --amber-soft:#2a2010;
+}
+
+*{box-sizing:border-box;}
+/* Some elements below (.pipeline / .error-state / .empty-state) set their own
+   "display" so they can be flex containers. That silently defeats the native
+   [hidden] behaviour once JS sets el.hidden = true — the element stays on
+   screen even though it's supposed to be gone. Force [hidden] to always win. */
+[hidden]{display:none !important;}
+html,body{margin:0; padding:0;}
+body{
+  font-family:"Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:#fde68a;}
+
+/* ===================== topbar ===================== */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  background:var(--card); border-bottom:1px solid var(--border);
+}
+.topbar-inner{
+  max-width:1180px; margin:0 auto; padding:12px 24px;
+  display:flex; align-items:center; gap:20px;
+  flex-wrap:nowrap; /* never break onto a second row */
+}
+.brand{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+.brand-text{display:flex; flex-direction:column; line-height:1.25; white-space:nowrap;}
+.brand-text b{font-size:1.02rem; font-weight:800; color:var(--ink); white-space:nowrap;}
+.brand-text span{font-size:.7rem; color:var(--red); font-weight:700; letter-spacing:.3px; white-space:nowrap;}
+
+.topnav{
+  display:flex; align-items:center; gap:22px; flex:1 1 auto; min-width:0;
+  overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none;
+}
+.topnav::-webkit-scrollbar{display:none;}
+.nav-link{
+  font-size:.86rem; font-weight:600; color:var(--muted); text-decoration:none;
+  padding:6px 2px; border-bottom:2px solid transparent; transition:all .15s;
+  white-space:nowrap; flex-shrink:0;
+}
+.nav-link:hover{color:var(--ink);}
+.nav-link.active{color:var(--red); border-bottom-color:var(--red);}
+.nav-link.disabled{color:var(--muted-2); cursor:default; display:flex; align-items:center; gap:6px; white-space:nowrap;}
+.badge-soon{
+  font-style:normal; font-size:.62rem; font-weight:800; letter-spacing:.4px;
+  background:var(--navy-soft); color:var(--ink-soft); border-radius:99px; padding:2px 8px;
+  white-space:nowrap;
+}
+
+.topbar-actions{display:flex; align-items:center; gap:10px; flex-shrink:0; white-space:nowrap;}
+.icon-btn{
+  width:34px; height:34px; border-radius:50%; border:1px solid var(--border);
+  background:var(--card); color:var(--ink-soft); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all .15s;
+}
+.icon-btn:hover{border-color:var(--ink); color:var(--ink);}
+
+.status-pill{
+  display:flex; align-items:center; gap:7px; font-size:.78rem; font-weight:600; color:var(--muted);
+  border:1px solid var(--border); border-radius:99px; padding:6px 12px 6px 10px; background:var(--card);
+  white-space:nowrap; flex-shrink:0;
+}
+.status-pill .dot{width:8px; height:8px; border-radius:50%; background:var(--muted-2); flex:none;}
+.status-pill.ok .dot{background:var(--green); box-shadow:0 0 0 3px var(--green-soft);}
+.status-pill.warn .dot{background:var(--amber); box-shadow:0 0 0 3px var(--amber-soft);}
+.status-pill.err .dot{background:var(--red); box-shadow:0 0 0 3px var(--red-soft);}
+
+.avatar{
+  width:32px; height:32px; border-radius:50%; background:var(--navy); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:.82rem; font-weight:800;
+  flex-shrink:0;
+}
+
+/* ===================== buttons ===================== */
+.btn{
+  border:none; border-radius:12px; padding:10px 16px; font-family:inherit;
+  font-size:.86rem; font-weight:700; cursor:pointer; transition:all .15s;
+  white-space:nowrap;
+}
+.btn-pill{border-radius:99px; padding:8px 16px; font-size:.8rem;}
+.btn-primary{background:var(--navy); color:#fff;}
+.btn-primary:hover{background:#1e293b;}
+.btn-primary:disabled{background:var(--muted-2); cursor:default;}
+.btn-outline{background:var(--card); color:var(--ink); border:1.5px solid var(--border); text-decoration:none; display:inline-flex; align-items:center;}
+.btn-outline:hover{border-color:var(--ink);}
+.btn-ghost{background:transparent; color:var(--muted); border:1.5px solid var(--border);}
+.btn-ghost:hover{color:var(--ink); border-color:var(--ink);}
+
+/* narrow windows: trim the topbar instead of ever wrapping/scrolling it */
+@media(max-width:760px){
+  .topbar-inner{gap:12px; padding:10px 14px;}
+  .brand-text span{display:none;}         /* drop "VLearn · VinUni AI Thực Chiến" */
+  .topnav{gap:14px;}
+  #apiDocsLink{font-size:0;}
+  #apiDocsLink::before{content:"↗"; font-size:1rem; display:inline-block;}
+}
+@media(max-width:560px){
+  .status-pill #statusText{display:none;}  /* keep just the coloured dot */
+  .status-pill{padding:6px 8px;}
+}
+
+/* ===================== layout ===================== */
+.page{max-width:1180px; margin:0 auto; padding:28px 24px 60px;}
+.grid2{display:grid; grid-template-columns:1.4fr 1fr; gap:22px; align-items:start;}
+@media(max-width:900px){ .grid2{grid-template-columns:1fr;} }
+
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
+  box-shadow:var(--shadow); padding:24px 26px;
+}
+.card-eyebrow{
+  font-size:.72rem; font-weight:800; letter-spacing:.6px; color:var(--muted); margin-bottom:6px;
+}
+.eyebrow-red{color:var(--red);}
+.card-title{font-size:1.4rem; font-weight:800; margin:0 0 6px;}
+.card-title-sm{font-size:1.1rem; font-weight:800; margin:0 0 4px;}
+.card-sub{color:var(--muted); font-size:.86rem; margin:0 0 18px;}
+
+/* ===================== reader ===================== */
+.reader-body{position:relative; font-size:.98rem; color:var(--ink-soft);}
+.reader-body p{margin:0 0 14px;}
+
+.slide-viewer{
+  margin:0 0 12px; border:1px solid var(--border); border-radius:var(--radius-md);
+  overflow:hidden; background:#fff;
+}
+.slide-page-wrap{position:relative; width:100%; line-height:0;}
+.slide-page-wrap canvas{display:block; width:100%; height:auto;}
+/* Real PDF.js text layer: invisible text positioned exactly on top of the
+   rendered slide image, so you can select words directly on the slide —
+   same mechanism as a browser's native PDF viewer. */
+.textLayer{position:absolute; inset:0; overflow:hidden; line-height:1;}
+.textLayer > span{
+  color:transparent; position:absolute; white-space:pre; cursor:text;
+  transform-origin:0% 0%;
+}
+.textLayer ::selection{background:rgba(220,38,38,.35);}
+.slide-loading{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:60px 10px; color:var(--muted); font-size:.85rem;
+}
+
+.slide-caption{
+  margin:0 0 18px; padding:8px 12px; font-size:.72rem; color:var(--muted);
+  background:var(--navy-soft); border:1px solid var(--border-soft); border-radius:var(--radius-sm);
+  line-height:1.5;
+}
+.slide-caption code{
+  font-size:.68rem; background:var(--card); color:var(--ink-soft);
+  padding:1px 6px; border-radius:5px; border:1px solid var(--border);
+}
+.hint-box{
+  margin-top:16px; background:var(--amber-soft); color:var(--amber);
+  border-radius:var(--radius-sm); padding:10px 14px; font-size:.82rem; font-weight:600;
+}
+
+.lookup-icon{
+  position:absolute; z-index:50; display:none;
+  width:32px; height:32px; border-radius:10px; border:2px solid var(--card);
+  background:var(--navy); color:#fff; font-size:.95rem; cursor:pointer;
+  align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(15,23,42,.3);
+  animation:pop .15s ease;
+}
+.lookup-icon:hover{background:var(--red);}
+@keyframes pop{from{opacity:0; transform:scale(.6);} to{opacity:1; transform:scale(1);}}
+
+/* ===================== tutor panel ===================== */
+.stat-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;
+}
+.stat{
+  border:1px solid var(--border-soft); background:var(--navy-soft); border-radius:var(--radius-sm);
+  padding:10px 12px;
+}
+.stat-ico{font-size:.85rem;}
+.stat b{display:block; font-size:1.15rem; font-weight:800; margin-top:2px;}
+.stat small{font-size:.62rem; font-weight:700; color:var(--muted); letter-spacing:.4px;}
+
+.tutor-panel{min-height:220px; display:flex; flex-direction:column;}
+
+.empty-state{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; color:var(--muted); gap:8px; padding:26px 10px;
+  border:1.5px dashed var(--border); border-radius:var(--radius-md);
+}
+.empty-ico{font-size:2rem;}
+.empty-state b{color:var(--ink-soft); font-size:.92rem;}
+.empty-state span{font-size:.8rem; max-width:260px;}
+
+.pipeline{display:flex; flex-direction:column; gap:8px;}
+.pl-step{
+  display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:var(--radius-sm);
+  background:var(--navy-soft); border:1px solid var(--border-soft); font-size:.84rem; color:var(--muted);
+  opacity:.4; transition:all .3s;
+}
+.pl-step .st{width:9px; height:9px; border-radius:50%; background:var(--muted-2); flex:none;}
+.pl-step.run{opacity:1; border-color:var(--navy); color:var(--ink);}
+.pl-step.run .st{background:var(--navy); animation:blink 1s infinite;}
+.pl-step.ok{opacity:1; background:var(--green-soft); border-color:var(--green);}
+.pl-step.ok .st{background:var(--green);}
+@keyframes blink{50%{transform:scale(1.4);}}
+
+.result{animation:fadeUp .3s ease;}
+@keyframes fadeUp{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+
+.result-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.term-abbr{font-size:1.5rem; font-weight:800; color:var(--navy); margin-right:8px;}
+.term-full{font-size:.85rem; color:var(--muted); font-weight:600;}
+.confidence-tag{
+  font-size:.68rem; font-weight:800; letter-spacing:.4px; padding:4px 10px; border-radius:99px;
+  white-space:nowrap;
+}
+.confidence-tag.high{background:var(--green-soft); color:var(--green);}
+.confidence-tag.low{background:var(--amber-soft); color:var(--amber);}
+.confidence-tag.insufficient{background:var(--red-soft); color:var(--red);}
+
+.explain-box, .example-box, .evidence-box{margin-top:14px;}
+.lbl{
+  display:block; font-size:.68rem; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+  color:var(--muted); margin-bottom:5px;
+}
+.explain-box p{margin:0; font-size:.92rem; color:var(--ink-soft);}
+.example-box p{
+  margin:0; font-size:.86rem; background:var(--green-soft); color:var(--ink-soft);
+  border-radius:var(--radius-sm); padding:10px 13px;
+}
+.evidence-box p{
+  margin:0; font-size:.8rem; color:var(--muted); font-style:italic; border-left:3px solid var(--border);
+  padding-left:10px;
+}
+.evidence-box:empty, .evidence-box p:empty{display:none;}
+
+.fallback-box{
+  margin-top:12px; background:var(--amber-soft); color:var(--amber); border-radius:var(--radius-sm);
+  padding:12px 14px; font-size:.84rem; line-height:1.55;
+}
+
+.related-box{margin-top:16px;}
+.chips{display:flex; flex-wrap:wrap; gap:7px; margin-top:8px;}
+.chip{
+  font-size:.78rem; font-weight:700; padding:5px 12px; border-radius:99px; border:1.5px solid var(--border);
+  background:var(--card); color:var(--navy); cursor:pointer; transition:all .15s;
+}
+.chip:hover{border-color:var(--navy); background:var(--navy-soft);}
+
+.result-actions{display:flex; gap:10px; margin-top:18px;}
+.result-actions .btn{flex:1;}
+.model-tag{margin-top:10px; font-size:.68rem; color:var(--muted-2); text-align:right;}
+
+.error-state{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  text-align:center; padding:24px 12px; background:var(--red-soft); border-radius:var(--radius-md);
+}
+.error-state b{color:var(--red);}
+.error-state p{color:var(--ink-soft); font-size:.84rem; margin:0 0 6px; max-width:260px;}
+
+/* ===================== notebook ===================== */
+.notebook-card{margin-top:22px;}
+.notebook-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+.count-pill{
+  background:var(--navy); color:#fff; font-size:.75rem; font-weight:800; border-radius:99px; padding:3px 12px;
+}
+.nb-empty{color:var(--muted); font-size:.85rem; margin:6px 0 0;}
+.nb-list{display:flex; flex-direction:column; margin-top:10px;}
+.nb-item{
+  display:flex; align-items:center; gap:14px; padding:13px 6px; border-bottom:1px solid var(--border-soft);
+  cursor:pointer; transition:background .12s;
+}
+.nb-item:hover{background:var(--navy-soft); border-radius:var(--radius-sm);}
+.nb-item .n-term{font-weight:800; color:var(--navy); min-width:110px;}
+.nb-item .n-meaning{color:var(--muted); font-size:.84rem; flex:1;}
+.nb-item .n-level{
+  font-size:.68rem; font-weight:700; color:var(--muted); background:var(--navy-soft);
+  border-radius:99px; padding:3px 10px; white-space:nowrap;
+}
+.nb-item .n-del{
+  border:none; background:transparent; color:var(--muted-2); font-size:.95rem; cursor:pointer; padding:4px 8px;
+}
+.nb-item .n-del:hover{color:var(--red);}
