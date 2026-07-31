@@ -6,11 +6,9 @@
 const API_BASE = "http://127.0.0.1:8000";
 const LEARNER_LEVEL = "coban"; // fixed to the simplest level, per product decision
 
-// Real slides (8 curated pages of data/vlearn-pack/slides/d1-slide-hackathon.pdf,
-// extracted with qpdf: 3,4,8,10,11,13,14,15) rendered client-side via pdf.js —
-// canvas for the pixel-accurate picture, a text layer on top so you can select
-// words directly on the slide, same mechanism a browser's native PDF viewer uses.
-const SLIDE_PDF_URL = "assets/slide-d1-selected.pdf";
+// Real slides are served by the backend from data/vlearn-pack/slides.
+// The frontend loads them through the API so the PDF is shared from one place.
+const SLIDE_PDF_URL = `${API_BASE}/api/slides/d1-slide-hackathon.pdf`;
 const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 const $ = (id) => document.getElementById(id);

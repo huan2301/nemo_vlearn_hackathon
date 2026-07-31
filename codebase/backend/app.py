@@ -1,8 +1,10 @@
 import os
 import re
 import uvicorn
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from typing import Dict, Any, Optional
 
 from config import config
@@ -139,6 +141,10 @@ app.add_middleware(
 )
 
 
+def _resolve_slide_dir() -> Path:
+    return Path(__file__).resolve().parent.parent.parent / "data" / "vlearn-pack" / "slides"
+
+
 @app.get("/api/health", response_model=HealthResponse, tags=["Health"])
 def health_check():
     return HealthResponse(
@@ -149,6 +155,36 @@ def health_check():
         fallback_model=config.GROQ_FALLBACK_MODEL,
         active_sessions_count=session_manager.get_active_count()
     )
+
+
+@app.get("/api/slides", tags=["Slides"])
+def list_slides():
+    slides_dir = _resolve_slide_dir()
+    if not slides_dir.exists():
+        return {"slides": []}
+
+    slides = []
+    for path in sorted(slides_dir.glob("*.pdf")):
+        slides.append({
+            "name": path.name,
+            "size_bytes": path.stat().st_size,
+            "url": f"/api/slides/{path.name}",
+        })
+    return {"slides": slides}
+
+
+@app.get("/api/slides/{slide_name}", tags=["Slides"])
+def get_slide(slide_name: str):
+    safe_name = Path(slide_name).name
+    if not safe_name or safe_name != slide_name:
+        raise HTTPException(status_code=400, detail="Invalid slide name")
+
+    slides_dir = _resolve_slide_dir()
+    slide_path = slides_dir / safe_name
+    if not slide_path.exists() or not slide_path.is_file():
+        raise HTTPException(status_code=404, detail="Slide not found")
+
+    return FileResponse(slide_path, media_type="application/pdf", filename=safe_name)
 
 
 # ==================== SESSIONS API ====================
