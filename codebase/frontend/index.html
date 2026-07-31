@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=3">
+<link rel="stylesheet" href="css/styles.css?v=7">
 </head>
 <body>
 
@@ -51,35 +51,24 @@
     <!-- ============ LEFT: reader ============ -->
     <section class="card reader-card" id="reader">
       <div class="card-eyebrow eyebrow-red">ĐANG ĐỌC</div>
-      <h1 class="card-title">Building LLM Applications</h1>
-      <p class="card-sub">Bôi đen bất kỳ từ tiếng Anh nào bên dưới để AI giải thích ngay tại chỗ.</p>
+      <h1 class="card-title">AI &amp; LLM Foundation — Day 1</h1>
+      <p class="card-sub">8 slide thật của khoá học · cuộn xuống để xem tiếp · bôi đen hoặc bấm chip gợi ý để AI giải thích.</p>
 
       <div class="reader-body" id="readerBody">
-        <p>
-          A large language model (LLM) only knows what it learned during training.
-          When you ask about internal documents or recent events, the model may
-          hallucinate — producing answers that sound fluent and confident, but are
-          actually wrong.
-        </p>
-        <p>
-          Retrieval-Augmented Generation (RAG) solves this problem by letting the
-          system retrieve relevant information first, and only then generate the
-          answer. Documents are split into small chunks, converted into embeddings,
-          and stored in a vector database so the system can run semantic search
-          over them.
-        </p>
-        <p>
-          With this approach, there is no need for expensive fine-tuning every time
-          new documents arrive. You simply update the knowledge base, and the model
-          always answers from the latest source — with citations included so
-          learners can verify every claim.
+        <div class="slide-page-indicator" id="slidePageIndicator">Trang 1 / 8</div>
+        <div class="slide-scroll" id="slideScroll"></div>
+
+        <p class="slide-caption">
+          📑 8 slide thật (trích) · <b>Day 1 — AI &amp; LLM Foundation</b> ·
+          <code>data/vlearn-pack/slides/d1-slide-hackathon.pdf</code> ·
+          bôi đen chữ trên slide, hoặc bấm chip "thuật ngữ khó" bên dưới mỗi trang
         </p>
 
         <button id="lookupIcon" class="lookup-icon" title="Giải thích từ này">⚡</button>
       </div>
 
       <div class="hint-box">
-        💡 Thử bôi đen: <b>RAG</b>, <b>embeddings</b>, <b>hallucinate</b>, <b>vector database</b>, <b>fine-tuning</b> — rồi bấm icon ⚡ hiện cạnh từ.
+        💡 Hệ thống tự quét mỗi trang và gợi ý thuật ngữ khó (dựa trên trình độ hiện tại) — bấm thẳng vào chip, hoặc tự bôi đen bất kỳ từ nào khác.
       </div>
     </section>
 
@@ -96,12 +85,18 @@
         <div class="stat"><span class="stat-ico">🪪</span><b id="statSession">—</b><small>PHIÊN</small></div>
       </div>
 
+      <div class="progress-row" id="progressRow">
+        <span class="progress-chip">🎯 Quiz: <b id="pQuizScore">0/0</b></span>
+        <span class="progress-chip">📈 Đúng: <b id="pAccuracy">—</b></span>
+        <span class="progress-chip">🔥 Streak: <b id="pStreak">0</b></span>
+      </div>
+
       <div class="tutor-panel">
 
         <div class="empty-state" id="emptyState">
           <div class="empty-ico">🖍️</div>
           <b>Chưa có từ nào được chọn</b>
-          <span>Bôi đen một từ ở tài liệu bên trái, rồi bấm icon ⚡ hiện ra cạnh từ đó.</span>
+          <span>Bôi đen một từ ở tài liệu bên trái, hoặc bấm chip thuật ngữ khó dưới mỗi trang.</span>
         </div>
 
         <div class="pipeline" id="pipeline" hidden>
@@ -119,6 +114,17 @@
             <span class="confidence-tag" id="rConfidence"></span>
           </div>
 
+          <div class="difficulty-badge" id="rDifficulty" hidden>
+            ⚠️ Thuật ngữ này có vẻ khó — <span id="rDifficultyReason"></span>
+          </div>
+
+          <div class="style-row" id="styleRow">
+            <button class="style-btn" data-style="tomtat" title="Tóm tắt">Tóm tắt</button>
+            <button class="style-btn" data-style="vidu" title="Ví dụ">Ví dụ</button>
+            <button class="style-btn" data-style="sosanh" title="So sánh">So sánh</button>
+            <button class="style-btn" data-style="chuyensau" title="Chuyên sâu">Chuyên sâu</button>
+          </div>
+
           <div class="explain-box" id="rExplainBox">
             <span class="lbl">Giải thích</span>
             <p id="rExplain"></p>
@@ -126,6 +132,10 @@
           <div class="example-box" id="rExampleBox">
             <span class="lbl">📌 Ví dụ</span>
             <p id="rExample"></p>
+          </div>
+          <div class="comparison-box" id="rComparisonBox" hidden>
+            <span class="lbl">🆚 So với khái niệm quen thuộc</span>
+            <p id="rComparison"></p>
           </div>
           <div class="evidence-box" id="rEvidenceBox">
             <span class="lbl">Trích từ ngữ cảnh</span>
@@ -137,6 +147,13 @@
           <div class="related-box" id="rRelatedBox">
             <span class="lbl">Khái niệm liên quan</span>
             <div class="chips" id="rChips"></div>
+          </div>
+
+          <div class="quiz-box" id="quizBox" hidden>
+            <span class="lbl">📝 Kiểm tra nhanh</span>
+            <p id="quizQuestion"></p>
+            <div class="quiz-options" id="quizOptions"></div>
+            <div class="quiz-feedback" id="quizFeedback" hidden></div>
           </div>
 
           <div class="result-actions">
@@ -166,12 +183,23 @@
       </div>
       <span class="count-pill" id="nbCount">0</span>
     </div>
+
+    <div class="due-section" id="dueSection">
+      <div class="due-head">
+        <span class="lbl">⏰ Cần ôn hôm nay (spaced repetition)</span>
+        <span class="count-pill due-pill" id="dueCount">0</span>
+      </div>
+      <p class="nb-empty" id="dueEmpty">Chưa có thẻ nào tới hạn ôn lại.</p>
+      <div class="due-list" id="dueList"></div>
+    </div>
+
     <p class="nb-empty" id="nbEmpty">Chưa có từ nào được lưu. Bấm "Lưu để ôn tập" sau khi xem giải thích.</p>
     <div class="nb-list" id="nbList"></div>
   </section>
 
 </main>
 
-<script src="js/app.js?v=3" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="js/app.js?v=5" defer></script>
 </body>
 </html>

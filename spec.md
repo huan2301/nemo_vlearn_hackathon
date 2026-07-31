@@ -1,75 +1,76 @@
-# AI SPEC — AI Glossary Tutor: hiểu thuật ngữ AI ngay trong ngữ cảnh · Nhóm [chưa cập nhật] · Zone [chưa cập nhật]
+# AI SPEC — Adaptive Glossary Learning Loop cho VLearn · Nhóm Nemo VLearn · Zone [chưa cập nhật]
 
-Hướng: [ ] A — VLearn  [ ] B — Trợ lý Học viên  [x] C — Làn mở
-Loại: [ ] Tối ưu tính năng có sẵn  [x] Tính năng mới
+Hướng: [x] A — VLearn  [ ] B — Trợ lý Học viên  [ ] C — Làn mở
+Loại: [x] Tối ưu tính năng có sẵn  [ ] Tính năng mới
 
+> **Product vision:** biến hành động tra một thuật ngữ trên slide thành một vòng học thích ứng: phát hiện thuật ngữ khó → giải thích theo ngữ cảnh và trình độ → cho người học chọn cách học → kiểm tra hiểu → cập nhật hồ sơ → tạo flashcard và lịch ôn.
+>
+> **Lát cắt prototype:** để đúng yêu cầu “1 user · 1 việc · 1 quyết định AI · 1 kết quả”, bản demo tập trung vào **một thuật ngữ người học bấm/bôi đen** và **một quyết định AI trung tâm: chọn gói giải thích phù hợp với ngữ cảnh + Learning Profile hiện tại**. Câu kiểm tra, cập nhật profile và flashcard là hậu xử lý trong cùng một lượt; tự quét cả trang và nhắc spaced repetition là prototype mở rộng/roadmap nếu code chưa hoàn tất.
 
 ## §1. User & Job
 
-### Job executor và workflow
+### Job executor + workflow
 
-**Job executor chính:** sinh viên, người chuyển ngành, nhân viên văn phòng hoặc người mới học AI đang đọc slide/tài liệu kỹ thuật trên trình duyệt và chưa có vốn từ chuyên ngành.
+**Job executor:** học viên mới học AI hoặc có nền tảng non-tech đang đọc slide/tài liệu trên VLearn và gặp thuật ngữ vượt quá mức hiểu hiện tại.
 
-**Workflow hiện tại:**
-
-| Bước | Người học đang làm gì | Cách xử lý hiện tại | Chỗ vướng |
+| Chặng | Người học đang làm gì | VLearn Tutor hiện tại | Chỗ còn fail |
 |---|---|---|---|
-| 1. Locate | Đọc tài liệu và gặp từ/cụm từ lạ | Đoán theo câu hoặc bỏ qua | Dễ hiểu sai nền tảng của đoạn sau |
-| 2. Select | Xác định đúng phần chưa hiểu | Copy từ hoặc cả câu | Chọn quá ngắn làm mất nghĩa; chọn quá dài gây nhiễu |
-| 3. Look up | Mở tab Google/ChatGPT/từ điển | Tự viết lại câu hỏi và dán ngữ cảnh | Gián đoạn mạch đọc; câu trả lời dễ mang nghĩa chung, không đúng nghĩa tại đoạn đang đọc |
-| 4. Interpret | Đọc và đối chiếu lời giải với tài liệu | Tự kiểm chứng | Người mới khó nhận biết câu trả lời bịa hoặc sai ngữ cảnh |
-| 5. Resume | Quay lại tài liệu | Tìm lại vị trí đang đọc | Tốn thao tác và mất tập trung |
-| 6. Review | Muốn nhớ lại thuật ngữ | Ghi chú rời rạc hoặc tra lại | Không có danh sách theo ngữ cảnh để ôn tập |
+| Mở slide | Đọc nội dung bài học | Hiển thị slide/tài liệu | Người học chưa biết từ nào là “khó với mình” |
+| Gặp thuật ngữ | Bôi đen một từ/cụm từ | Đã có flow bôi đen và hỏi tutor | Phải tự nhận ra chỗ không hiểu; selection có thể thiếu context |
+| Nhận giải thích | Đọc nghĩa, acronym, ví dụ | Backend đã có `/api/explain`, context, `learner_level`, acronym, example, related concepts | Level chủ yếu do user chọn thủ công; chưa đánh giá độ khó của thuật ngữ so với người học |
+| Đào sâu | Muốn học theo cách hợp với mình | Có chat hỏi tiếp | Chưa có lựa chọn nhanh: Tóm tắt/Ví dụ/So sánh/Chuyên sâu |
+| Kiểm tra hiểu | Tự đoán mình đã hiểu | Gần như chưa có trong log | Tutor hiếm khi hỏi lại; không có đánh giá ngay |
+| Ghi nhớ | Lưu thuật ngữ | Backend đã có saved terms trong session RAM | Chưa tự tạo flashcard từ kết quả học; không bền sau restart |
+| Ôn tập | Muốn nhớ lại đúng lúc | Chưa có | Chưa có lịch spaced repetition |
 
-### Core JTBD
+**Core JTBD:**
+**Kiểm tra và củng cố ngay mức hiểu của mình về một thuật ngữ trong lúc đọc slide để tiếp tục bài học mà không tích lũy lỗ hổng kiến thức.**
 
-**Làm rõ ngay một thuật ngữ chưa hiểu trong lúc đọc tài liệu AI để tiếp tục học mà không mất mạch đọc.**
+Core JTBD không chứa tên sản phẩm hoặc chữ AI; nếu bỏ VLearn/Tutor đi, công việc của người học vẫn tồn tại.
 
-Các job story:
+### Job stories
 
-1. Khi gặp một từ viết tắt như “RLHF” trong slide, tôi muốn biết tên đầy đủ và nghĩa của nó trong chính đoạn này, để có thể hiểu tiếp phần giảng.
-2. Khi một từ như “agent”, “context” hoặc “temperature” có nhiều nghĩa, tôi muốn biết nghĩa nào đang được dùng và vì sao, để không học nhầm.
-3. Khi vừa hiểu một khái niệm mới, tôi muốn lưu lại giải thích ngắn và ví dụ, để ôn mà không phải tra lại từ đầu.
+1. Khi mở một slide có nhiều thuật ngữ mới, tôi muốn nhận biết từ nào có thể vượt quá trình độ hiện tại, để không vô tình bỏ qua một mắt xích quan trọng.
+2. Khi bôi đen “RAG”, tôi muốn được giải thích theo đúng câu đang đọc và bằng cách phù hợp với mức của mình, để hiểu nhanh mà không đổi tab.
+3. Khi vừa đọc lời giải, tôi muốn làm một câu hỏi ngắn để biết mình hiểu thật hay chỉ thấy quen mắt.
+4. Khi trả lời sai, tôi muốn hệ thống điều chỉnh cách giải thích và ghi nhận lỗ hổng, để lần sau không tiếp tục đưa nội dung quá khó.
+5. Khi đã học một thuật ngữ, tôi muốn có flashcard và được nhắc ôn đúng lúc, để ghi nhớ lâu hơn.
 
 ### Problem statement
 
-Người mới học AI khi đọc tài liệu chứa nhiều thuật ngữ tiếng Anh và từ viết tắt phải rời trang để tra cứu, tự mang ngữ cảnh sang công cụ khác và tự đánh giá độ đúng; việc này làm đứt mạch đọc, tốn thao tác và có nguy cơ hiểu sai khái niệm nền tảng.
+Người mới học AI khi đọc slide có thể tra được nghĩa của thuật ngữ nhưng vẫn không biết thuật ngữ nào khó với chính mình, lời giải có vừa trình độ hay không và mình đã hiểu thật chưa; kết quả là họ dễ bỏ qua lỗ hổng, phải tra lặp lại và quên khái niệm sau buổi học.
 
-### Evidence
+### Evidence chuẩn B — mining chatlog VLearn
 
-#### Đường B — mining chatlog thật
+Nguồn: `data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv`, 1.261 cặp hỏi–đáp, 369 người dùng, 585 hội thoại, từ 22–29/07/2026.
 
-Nguồn: `data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv`, gồm 1.261 cặp hỏi–đáp của 369 người dùng trong 585 hội thoại.
+**Phương pháp đếm short-span explanation, có thể kiểm lại:**
 
-**Phương pháp đếm có thể kiểm lại:**
-
-1. Chỉ lấy dòng `role = student`.
-2. Tách phần `đoạn được chọn` và câu hỏi phía sau ký tự xuống dòng.
-3. Gắn nhãn **short-span explanation** nếu đoạn chọn dài tối đa 6 token tách theo khoảng trắng **và** đoạn chọn/câu hỏi có ít nhất một ý định sau sau khi chuyển chữ thường, bỏ dấu: `giải thích đoạn bôi đen`, `giải thích`, `là gì`, `nghĩa`, `dịch nghĩa`.
-4. Đếm theo `turn_id`; đếm người theo `user_id`; đếm hội thoại theo `conversation_id`.
-5. Với mỗi turn đã gắn nhãn, ghép câu trả lời cùng `turn_id`; coi thiếu căn cứ khi trường `citations` rỗng hoặc bằng `[]`.
+1. Chỉ lấy `role = student`.
+2. Tách `đoạn được chọn` và câu hỏi phía sau dòng đầu.
+3. Gắn nhãn nếu đoạn chọn tối đa 6 token và selection/câu hỏi sau khi chuyển chữ thường, bỏ dấu chứa một trong các ý định: `giải thích đoạn bôi đen`, `giải thích`, `là gì`, `nghĩa`, `dịch nghĩa`.
+4. Đếm theo `turn_id`, người theo `user_id`, hội thoại theo `conversation_id`.
+5. Ghép tutor response cùng `turn_id`; `citations = []` hoặc rỗng được tính là thiếu citation.
 
 **Kết quả:**
 
-- 281/1.261 lượt hỏi là yêu cầu giải thích đoạn ngắn: **22,3% số lượt**.
-- 132/369 người dùng từng phát sinh loại yêu cầu này: **35,8% người dùng**.
-- Các lượt này nằm trong 179/585 hội thoại: **30,6% hội thoại**.
-- Tần suất trung bình trong nhóm đã gặp pain: **2,13 lượt/người** trong cửa sổ dữ liệu 22–29/07/2026.
-- 66/281 câu trả lời không có citation: **23,5%**, cho thấy rủi ro người mới nhận giải thích nhưng thiếu căn cứ để tự kiểm.
-- Rating quá thưa (9/281 lượt có rating) nên **không** dùng rating để kết luận mức hài lòng.
+- 281/1.261 lượt (**22,3%**) là yêu cầu giải thích đoạn ngắn.
+- 132/369 người dùng (**35,8%**) từng có loại yêu cầu này.
+- Các lượt nằm trong 179/585 hội thoại (**30,6%**).
+- Nhóm gặp pain hỏi trung bình **2,13 lượt/người** trong cửa sổ một tuần.
+- 66/281 câu trả lời (**23,5%**) không có citation.
+- Toàn bộ field `follow_ups` luôn `[]`; `misconceptions` luôn `[]`.
+- Chỉ 3/2.515 tutor message có `asked_check_question = True` (data dictionary); tức hành vi kiểm tra hiểu gần như vắng mặt trong hệ thống hiện tại.
+- Rating quá thưa nên không dùng để kết luận mức hài lòng.
 
-**Giới hạn phép đo:** tiêu chí trên đo nhu cầu “giải thích một đoạn ngắn”, là proxy gần với nhu cầu tra thuật ngữ nhưng có thể chứa một số cụm không phải thuật ngữ AI và bỏ sót câu hỏi viết theo cách khác. Dữ liệu chỉ phản ánh học viên VLearn trong một tuần, chưa đại diện đầy đủ cho sinh viên, người chuyển ngành và nhân viên văn phòng nói chung.
+**Ví dụ nguyên văn, có mã để kiểm lại:**
 
-#### Ví dụ nguyên văn
-
-Trích ngắn từ tin nhắn học viên, giữ mã turn để kiểm lại:
-
-| Turn | Ví dụ nguyên văn |
+| Turn | Tin nhắn học viên |
 |---|---|
 | `T0990` | Chọn “Context” — hỏi: `"Context" là gì` |
 | `T1087` | Chọn “Tool calling” — hỏi: `tool calling là gì` |
-| `T0597` | Chọn “Zero-shot, One-shot, Few-shot, CoT” — yêu cầu giải thích khác biệt “cho một sinh viên SE chưa hiểu gì về AI” |
-| `T0573` | Chọn “RNN là gì” — hỏi: `RNN là gì` |
+| `T0597` | Chọn “Zero-shot, One-shot, Few-shot, CoT” — yêu cầu giải thích cho “một sinh viên SE chưa hiểu gì về AI” |
+| `T0573` | Chọn và hỏi: `RNN là gì` |
 | `T0750` | Chọn “RLHF” — yêu cầu giải thích đoạn bôi đen |
 | `T0587` | Chọn và hỏi: `SFT là gì, RLHF là gì` |
 | `T0234` | Chọn và hỏi: `LLM là gì?` |
@@ -77,86 +78,124 @@ Trích ngắn từ tin nhắn học viên, giữ mã turn để kiểm lại:
 | `T0663` | Chọn “PAIR” — hỏi: `là gì` |
 | `T0004` | Chọn “KB” — hỏi: `Kb ở đây là gì` |
 
-#### Evidence nội bộ cần tách khỏi chuẩn nghiệm thu
-
-Trong nhóm có thành viên phải tra từ viết tắt và dịch nghĩa theo ngữ cảnh. Đây là tín hiệu khám phá hữu ích nhưng **không tính là khảo sát chuẩn A**, vì là thành viên trong nhóm và chưa có log phỏng vấn đầy đủ.
-
-**Evidence còn thiếu để mở rộng kết luận:** khảo sát ít nhất 20 người ngoài nhóm với cùng bộ câu hỏi, trong đó cần ít nhất 50% xác nhận đã gặp pain trong lần đọc tài liệu AI gần nhất; phải lưu toàn bộ câu hỏi và câu trả lời nguyên văn vào `validation/` hoặc thư mục evidence riêng.
+**Giới hạn evidence:** phép đếm đo nhu cầu giải thích đoạn ngắn, không chứng minh trực tiếp rằng người học muốn spaced repetition hay tự động quét thuật ngữ. Dữ liệu về `asked_check_question`, `follow_ups` và `misconceptions` chứng minh khoảng trống hành vi của Tutor, chưa chứng minh tác động học tập. Các giả thuyết adaptive profile/flashcard/SR phải được xác nhận trong validation.
 
 ## §2. Impact & quyết định chọn
 
-### Bảng impact các ứng viên
+### Bảng impact
 
-Các số lượt/người dưới đây được mining trên cùng 1.261 lượt hỏi. “Phút/lần” là **giả thuyết cần đo bằng khảo sát quan sát tác vụ**, không phải kết quả đã xác nhận.
+| Ứng viên tối ưu | Bao nhiêu người/lượt | Tần suất hoặc gap | Tốn gì mỗi lần | Khả thi | Chọn? |
+|---|---:|---:|---|---|---|
+| Adaptive Glossary Loop: giải thích đúng mức + kiểm tra hiểu + cập nhật profile | 132 người, 281 lượt short-span | 2,13 lượt/người gặp pain; check question chỉ xuất hiện 3/2.515 tutor message | Giả thuyết 2–5 phút tra/đối chiếu và nguy cơ tưởng đã hiểu | Cao cho một term; backend đã có explain/session/save | **Chọn** |
+| Chỉ sửa grounding/citation | 66/281 lượt thiếu citation | 23,5% trong nhóm short-span | Người mới khó tự kiểm, có thể học sai | Cao | Giữ làm hard requirement, không phải lát cắt riêng |
+| Tự phát hiện toàn bộ thuật ngữ khó trên trang | Chưa có số nhu cầu trực tiếp | 0 implementation hiện tại | Giảm bỏ sót nhưng dễ highlight quá nhiều, gây phiền | Trung bình | Prototype mở rộng |
+| Tóm tắt toàn slide | 103 người, 149 lượt | 1,45 lượt/người | Giả thuyết 3–10 phút tự tổng hợp | Trung bình; khác job | Loại |
+| Sinh ví dụ/bài tập độc lập | 34 người, 48 lượt | 1,41 lượt/người | Giả thuyết 5–15 phút | Trung bình; scope rộng | Loại |
 
-| Ứng viên | Người gặp | Số lượt | Tần suất/người đã gặp | Tổn thất mỗi lần | Khả thi trong hackathon | Quyết định |
-|---|---:|---:|---:|---|---|
-| Giải thích thuật ngữ/đoạn ngắn theo ngữ cảnh | 132/369 (35,8%) | 281 (22,3%) | 2,13 | Giả thuyết 2–5 phút đổi tab, copy context, đọc và đối chiếu; thêm rủi ro hiểu sai | Cao: một selection event + một AI call + popup | **Chọn** |
-| Tóm tắt slide/bài học | 103/369 (27,9%) | 149 (11,8%) | 1,45 | Giả thuyết 3–10 phút tự chắt lọc; phạm vi context lớn | Trung bình: cần ingest toàn tài liệu và kiểm citation | Loại |
-| Gợi ý ví dụ/bài tập/thực hành | 34/369 (9,2%) | 48 (3,8%) | 1,41 | Giả thuyết 5–15 phút nghĩ bài tập; sai có thể làm lệch mục tiêu học | Trung bình-thấp: phải chấm mức phù hợp và đáp án | Loại |
-| So sánh các khái niệm | 15/369 (4,1%) | 21 (1,7%) | 1,40 | Giả thuyết 3–7 phút tra nhiều nguồn | Trung bình: dễ trôi sang giải thích quá rộng | Để sau |
+Các con số “phút/lần” là giả thuyết cần bấm giờ trong validation, không phải kết quả mining.
 
-Quy tắc đếm ba ứng viên còn lại: chuẩn hóa chữ thường và bỏ dấu; tìm lần lượt các cụm `tom tat/tom gon/tong hop`, `vi du/minh hoa/thuc hanh/bai tap`, và `phan biet/khac gi/so sanh` trong tin nhắn học viên. Các nhóm có thể giao nhau, nên bảng dùng để so quy mô nhu cầu chứ không cộng thành tổng.
+### Vì sao chọn
 
-### Ứng viên đã loại
+Adaptive Glossary Loop tận dụng đúng flow VLearn đã tồn tại và đánh vào khoảng trống đo được: nhu cầu tra thuật ngữ lớn (281 lượt), trong khi hệ thống hầu như không kiểm tra hiểu (3/2.515 tutor message), không ghi misconception và không có follow-up có cấu trúc. So với build một tutor mới, nhóm chỉ mở rộng dữ liệu session, output schema và UI sau lời giải.
 
-- **Tóm tắt tài liệu:** nhu cầu lớn nhưng không còn là “một thuật ngữ trong một ngữ cảnh”; cần cửa sổ context rộng, chiến lược retrieval và đánh giá độ bao phủ riêng. Không phù hợp lát cắt 5 phút.
-- **Sinh ví dụ/bài tập độc lập:** khó xác minh độ đúng trình độ và dễ biến thành một tutor đầy đủ. Prototype chỉ cung cấp **một ví dụ minh họa ngắn** như thành phần của lời giải thuật ngữ, không sinh bộ bài tập.
-- **So sánh khái niệm:** vẫn có giá trị nhưng số người/lượt thấp hơn rõ rệt và cần hai khái niệm đủ ngữ cảnh. Chỉ hiển thị “khái niệm liên quan”, chưa build flow so sánh sâu.
+### Ứng viên đã loại/hoãn
 
-### Ứng viên chọn
-
-Chọn giải thích thuật ngữ theo ngữ cảnh vì có tín hiệu lớn nhất trong ba nhóm nhu cầu đã đếm: 281 lượt từ 132 người dùng; quy mô lượt cao hơn tóm tắt 1,89 lần và cao hơn ví dụ/thực hành 5,85 lần. Lát cắt cũng khả thi nhất: input ngắn, kết quả có cấu trúc và có thể kiểm bằng golden set.
+- **Chỉ citation:** cần làm vì an toàn nhưng không giải quyết “hiểu thật hay chưa”.
+- **Tự quét toàn trang:** thuộc product vision nhưng dễ tạo alert fatigue; cần validation riêng cho ngưỡng highlight.
+- **Tóm tắt slide:** khác job và đòi context rộng.
+- **Bài tập mở:** khó đánh giá đáp án và độ phù hợp trong thời gian hackathon.
+- **Spaced repetition đầy đủ:** cần persistence, scheduler và notification; prototype chỉ tạo metadata `next_review_at`, chưa cần dịch vụ nhắc thật.
 
 ## §3. Giải pháp tương tự đã nghiên cứu
 
-| Sản phẩm/cách hiện tại | Flow quan sát được | Đáng học | Đáng né | AI Glossary Tutor khác gì |
+| Giải pháp | Flow | Đáng học | Đáng né | Khác biệt của VLearn |
 |---|---|---|---|---|
-| ChatGPT Study Mode | Người học mở chat, nêu mục tiêu hoặc tải tài liệu, hệ thống giải thích từng bước và có thể kiểm tra hiểu | Điều chỉnh mức giải thích, chia nhỏ khái niệm, khuyến khích hiểu thay vì chỉ đưa đáp án | Phải rời ngữ cảnh đọc hoặc tự tải/dán đúng phần tài liệu; vẫn cần tự mô tả trình độ | Kích hoạt ngay từ đoạn bôi đen, mặc định cho người mới và trả output glossary cố định, ngắn |
-| NotebookLM | Người dùng thêm nguồn rồi hỏi; câu trả lời gắn citation có thể nhảy về vị trí nguồn | Grounding và citation cạnh câu trả lời giúp kiểm chứng | Chi phí thiết lập notebook/nguồn cao cho một thuật ngữ tức thời | Dùng context lân cận trên trang hiện tại; hỏi lại khi context không đủ, không đòi tạo notebook |
-| Chrome/Google Translate | Bôi đen để dịch văn bản | Nhanh, ít thao tác, đúng mental model “select → understand” | Dịch ngôn ngữ không giải thích nghĩa chuyên ngành, từ viết tắt, quan hệ khái niệm hay mức tin cậy | Giữ interaction tức thời nhưng giải thích nghĩa chuyên ngành theo câu, mở rộng acronym và đưa ví dụ |
-| Google/ChatGPT ở tab khác | Copy từ/câu, mở công cụ, nhập câu hỏi, quay lại tài liệu | Linh hoạt, xử lý được nhiều loại câu hỏi | Mất mạch đọc; dễ quên dán context; output không đồng nhất và khó lưu có cấu trúc | Popup tại chỗ, tự lấy lượng context tối thiểu, output có schema và nút lưu/feedback |
+| ChatGPT Study Mode | Hỏi mục tiêu/trình độ, giải thích từng bước, đặt câu kiểm tra | Điều chỉnh độ khó và kiểm tra hiểu | User phải rời slide hoặc tự đưa đúng context | VLearn có sẵn slide, selection, lesson context và profile |
+| NotebookLM | Hỏi trên bộ nguồn, câu trả lời có citation nhảy về nguồn | Grounding rõ ràng | Cần thiết lập notebook; không tạo vòng ôn theo từng term | Citation ngay trên slide và term card |
+| Quizlet/flashcard flow | Lưu khái niệm, học và kiểm tra lặp lại | Retrieval practice và trạng thái ôn | Flashcard tách khỏi ngữ cảnh ban đầu | Thẻ giữ evidence span, slide/page và mức hiểu |
+| Tutor VLearn hiện tại | Bôi đen/hỏi, giải thích, citation | Không rời bài học; đã có user/context | Hỏi lại rất hiếm, follow-up/misconception trống | Thêm adaptive explanation → check → profile → review |
 
-Nguồn nghiên cứu chính thức: [ChatGPT Study Mode](https://help.openai.com/en/articles/11780217-study-mode), [NotebookLM chat và citation](https://support.google.com/notebooklm/answer/16179559?hl=en), [Chrome Translate](https://support.google.com/chrome/answer/173424?hl=en-GW).
+Nguồn chính thức tham khảo: [ChatGPT Study Mode](https://help.openai.com/en/articles/11780217-study-mode), [NotebookLM chat và citation](https://support.google.com/notebooklm/answer/16179559?hl=en).
 
 ## §4. Thiết kế
 
+### Flow sản phẩm mục tiêu
+
+```text
+Mở slide
+→ hệ thống gợi ý thuật ngữ có thể khó với profile hiện tại
+→ người học bấm hoặc bôi đen thuật ngữ
+→ hệ thống giải thích đúng ngữ cảnh
+→ ước lượng độ khó với người học hiện tại
+→ người học chọn Tóm tắt / Ví dụ / So sánh / Chuyên sâu
+→ sinh 1 câu kiểm tra
+→ đánh giá câu trả lời
+→ cập nhật Learning Profile
+→ tạo Flashcard
+→ xếp lịch Spaced Repetition
+```
+
 ### Lát cắt MỘT CÂU
 
-**Một người mới học AI bôi đen một thuật ngữ trong tài liệu đang đọc; hệ thống quyết định nghĩa phù hợp nhất dựa trên đoạn văn lân cận và độ đủ của căn cứ; người học nhận giải thích tiếng Việt dễ hiểu gồm tên đầy đủ, nghĩa trong ngữ cảnh và một ví dụ để tiếp tục đọc ngay.**
+**Một học viên mới học AI bấm vào một thuật ngữ trên slide VLearn; hệ thống quyết định gói giải thích phù hợp nhất từ ngữ cảnh và Learning Profile hiện tại; học viên nhận một thẻ học vừa trình độ kèm một câu kiểm tra để biết mình có thể tiếp tục bài học hay cần xem lại.**
 
-Đối chiếu format: **1 user** = người mới học AI · **1 việc** = hiểu thuật ngữ vừa bôi đen · **1 quyết định AI** = chọn nghĩa theo context hoặc thừa nhận chưa đủ chắc · **1 kết quả** = lời giải thích có cấu trúc để tiếp tục đọc.
+- **1 user:** học viên mới học AI đang đọc slide VLearn.
+- **1 việc:** hiểu và kiểm tra hiểu một thuật ngữ.
+- **1 quyết định AI:** chọn gói học phù hợp (`meaning + difficulty + explanation depth + check question`) dựa trên context/profile.
+- **1 kết quả:** thẻ học thích ứng có câu kiểm tra và trạng thái `đã hiểu/cần xem lại`.
 
-### Luồng chính
+### Phần VLearn cũ đã có và phần tối ưu
 
-1. Người dùng bôi đen 1–6 từ trên trang.
-2. Extension hiện nút “Giải thích”.
-3. Khi bấm, client gửi: đoạn chọn, 1–2 câu trước/sau, tiêu đề/URL trang, ngôn ngữ đầu ra và mức `Người mới`.
-4. Model trả JSON có schema: `term`, `expanded_form`, `meaning_in_context`, `plain_explanation`, `example`, `related_concepts`, `confidence`, `evidence_span`, `clarifying_question`.
-5. Nếu đủ căn cứ, popup hiện lời giải ngắn; nếu chưa đủ, popup hỏi đúng một câu làm rõ hoặc đề nghị chọn thêm câu.
-6. Người dùng có thể xem “Vì sao hiểu theo nghĩa này?”, sửa mức giải thích, lưu thẻ hoặc báo sai.
+| Thành phần | Hiện trạng trong code | Loại |
+|---|---|---|
+| Bôi đen/nhập thuật ngữ và context | Schema `/api/explain`; prototype flow bôi đen | Có sẵn |
+| Giải thích, acronym, ví dụ, related concepts, confidence | `prompts.py`, `schemas.py`, `llm_client.py` | Có sẵn |
+| Session, level thủ công | `sessions.py`, POST/PATCH session | Có sẵn |
+| Lưu/xóa/list thuật ngữ trong RAM | saved-term endpoints | Có sẵn |
+| Tự phát hiện thuật ngữ khó | Chưa có | Tối ưu mở rộng |
+| `difficulty_for_learner` và lý do | Chưa có | **Tối ưu lõi** |
+| 4 learning modes | Chưa có | **Tối ưu lõi** |
+| Sinh/check một câu hỏi | Chưa có | **Tối ưu lõi** |
+| Profile cập nhật từ kết quả | Chưa có; level chỉ sửa tay | **Tối ưu lõi** |
+| Flashcard có trạng thái ôn | Chưa có | Tối ưu sau lõi |
+| Notification spaced repetition | Chưa có | Roadmap/mock |
+
+### Interaction chi tiết
+
+1. VLearn đọc `session.learning_profile` và slide hiện tại.
+2. Hệ thống có thể gạch chân nhẹ tối đa 3 thuật ngữ khó; user luôn có thể bỏ qua hoặc tự bôi đen từ khác.
+3. Sau click, gửi `selected_text`, 1–2 câu xung quanh, slide/page, profile và mode.
+4. AI trả nghĩa theo context, expansion, độ khó cá nhân hóa (`easy/stretch/hard`), giải thích và evidence.
+5. Người học chọn:
+   - **Tóm tắt:** nghĩa cốt lõi trong ≤60 từ.
+   - **Ví dụ:** một ví dụ gần bối cảnh công việc/học tập.
+   - **So sánh:** phân biệt với tối đa hai khái niệm gần.
+   - **Chuyên sâu:** cơ chế, giới hạn và khi dùng.
+6. AI sinh đúng một câu multiple-choice hoặc trả lời ngắn, chỉ kiểm đúng learning objective vừa giải thích.
+7. Chấm đáp án theo rubric cố định; sai/không chắc → giải thích lại một lần và đánh dấu `needs_review`.
+8. Cập nhật profile bằng rule minh bạch; không để model tự nâng/hạ level tùy ý.
+9. Tạo flashcard từ output đã qua check; `next_review_at` theo rule đơn giản.
 
 ### Non-goals
 
-1. Không tóm tắt toàn bộ trang, PDF hoặc video.
-2. Không trả lời mọi câu hỏi mở như một chatbot tổng quát.
-3. Không làm bài tập, quiz, code hoặc bài nộp thay người học.
-4. Không khẳng định lời giải là nguồn học thuật chính thức khi không có nguồn.
-5. Không xây hệ thống spaced repetition hoàn chỉnh; prototype chỉ lưu danh sách thẻ cục bộ.
-6. Không crawl toàn website hoặc thu thập nội dung ngoài vùng context tối thiểu.
-7. Không đồng bộ tài khoản, chia sẻ bộ thẻ hoặc analytics đa thiết bị trong lát cắt đầu.
+1. Không xây lại toàn bộ VLearn hoặc chatbot tổng quát.
+2. Không tự động mở popup trên mọi thuật ngữ; chỉ gợi ý, user quyết định.
+3. Không highlight quá 3 thuật ngữ/trang trong prototype.
+4. Không sinh bộ quiz dài hoặc chấm bài tự luận mở.
+5. Không suy luận nghề nghiệp/trình độ từ dữ liệu nhạy cảm.
+6. Không đồng bộ profile đa thiết bị trong prototype.
+7. Không gửi notification thật; chỉ hiển thị lịch ôn dự kiến.
+8. Không dùng một câu sai để thay đổi level toàn cục.
 
-### Mức prototype nhắm tới
+### Mức prototype
 
 - [ ] Sketch
 - [x] Mock
 - [ ] Working
 
-**Phần thật bắt buộc:** bắt sự kiện chọn văn bản trên trang demo, lấy context lân cận, ít nhất một lời gọi LLM thật cho quyết định nghĩa/độ chắc chắn, render happy path và lưu thẻ trong local storage.
+**Thật:** backend explain/session/save hiện có; ít nhất một AI call thật cho adaptive package; một câu check; rule update profile; happy/low-confidence/failure/correction.
 
-**Phần mock được phép:** đăng nhập, đồng bộ cloud, nguồn ngoài tài liệu, analytics, thư viện glossary lớn, màn ôn tập nâng cao. Low-confidence/failure có thể dùng fixture để bảo đảm demo đúng nhánh, nhưng phải có ít nhất case thật đi qua cùng parser/schema.
-
-**Hiện trạng:** chưa có implementation trong `codebase/`, nên mức Mock là mục tiêu chứ chưa phải trạng thái đạt.
+**Mock/roadmap:** tự scan toàn slide nếu chưa tích hợp; notification spaced repetition; persistence sau restart; analytics lớp học. Trạng thái Mock được chọn vì code hiện tại chưa có các endpoint adaptive/quiz/SR.
 
 ### Automation
 
@@ -164,191 +203,215 @@ Nguồn nghiên cứu chính thức: [ChatGPT Study Mode](https://help.openai.co
 - [x] Conditional
 - [ ] Automate
 
-Hệ thống tự trả lời với case đủ rõ nhưng chuyển sang hỏi lại/giới hạn phạm vi khi context mơ hồ hoặc không có căn cứ. Nếu giải thích sai, người mới có thể học sai khái niệm nền và mang lỗi sang phần sau; chi phí phát hiện cao vì họ chưa đủ chuyên môn để nhận ra. Tuy vậy, buộc duyệt người thật mọi case sẽ phá vỡ job “hiểu ngay”. Conditional cân bằng tốc độ với cost-of-error: tự động ở case lành, không đoán ở case hiểm, luôn cho user xem evidence và sửa.
+- AI tự giải thích và sinh câu kiểm tra khi context/profile đủ.
+- Khi term mơ hồ, profile thiếu hoặc source không đủ, hỏi lại/chọn thêm context.
+- Profile chỉ cập nhật bằng rule có ngưỡng và user có thể sửa; không tự động đổi sau một tín hiệu.
+- Việc gợi ý thuật ngữ là augment: highlight nhẹ, người học quyết định có mở hay không.
 
-### §4b. Nguyên tắc đã áp dụng
+**Cost-of-error:** giải thích sai hoặc nâng level quá sớm có thể khiến người mới học sai và bỏ lỗ hổng; sửa đắt vì user khó tự phát hiện. Quên một reminder rẻ hơn, nên lịch ôn có thể tự động nhưng giải thích/profile cần conditional.
 
-| Nguyên tắc | Áp cụ thể vào prototype |
+### §4b. Nguyên tắc HAX/PAIR
+
+| Nguyên tắc | Áp cụ thể |
 |---|---|
-| HAX G1 — Làm rõ hệ thống làm được gì | Empty state ghi: “Giải thích thuật ngữ AI theo đoạn bạn đang đọc; không thay thế nguồn học chính thức.” |
-| HAX G2 — Làm rõ nó làm tốt đến đâu | Mỗi output có nhãn “Đủ ngữ cảnh” hoặc “Cần thêm ngữ cảnh”; không dùng phần trăm confidence giả chính xác. |
-| HAX G10 — Thu hẹp phạm vi khi nghi ngờ | Khi có nhiều nghĩa gần nhau hoặc selection quá ngắn, không chọn bừa; hỏi một câu hoặc yêu cầu chọn thêm câu xung quanh. |
-| HAX G9 — Sửa dễ dàng | Ngay trên popup có “Không đúng nghĩa này”, chọn lại đoạn, và mức “Dễ hơn/Chi tiết hơn”. |
-| HAX G11 — Giải thích vì sao | Accordion “Vì sao hiểu như vậy?” highlight evidence span và nêu tín hiệu ngữ cảnh đã dùng. |
-| HAX G15 — Mời feedback chi tiết | Nút 👎 mở lựa chọn: sai nghĩa, quá khó, quá dài, ví dụ không phù hợp, thiếu mở rộng từ viết tắt. |
-| PAIR — Explainability + Trust | Grounding ưu tiên context người dùng đang đọc; citation là chính đoạn nguồn, không bịa URL/tài liệu. |
-| PAIR — Feedback + Control | Người dùng đóng popup để tiếp tục đọc, sửa/lưu/xóa thẻ; AI không khóa flow và không tự lưu. |
-| PAIR — Errors + Graceful Failure | Phân biệt thiếu context, lỗi mạng, lỗi model/schema và nội dung ngoài phạm vi; mỗi lỗi có đường lui riêng. |
-| HAX G17 — Quyền kiểm soát tổng | Chỉ gửi nội dung sau khi người dùng bấm “Giải thích”; hiển thị preview context và cho tắt lấy context lân cận. |
+| G1 — Làm rõ hệ thống làm được gì | Tooltip nói rõ: “VLearn gợi ý thuật ngữ và kiểm tra hiểu; không thay thế tài liệu/giảng viên.” |
+| G2 — Làm rõ mức độ tin cậy | Card có `Đủ ngữ cảnh/Cần thêm ngữ cảnh`; độ khó là “với profile hiện tại”, không phải nhãn tuyệt đối. |
+| G8 — Gạt bỏ dễ dàng | User bỏ highlight, đóng card, bỏ qua quiz và tiếp tục slide. |
+| G9 — Sửa dễ dàng | Chọn “Quá dễ/Quá khó/Sai nghĩa”, đổi mode hoặc sửa level ngay trên card. |
+| G10 — Thu hẹp khi nghi ngờ | Term mơ hồ → hỏi một câu/chọn thêm context; không tạo quiz từ lời giải chưa chắc. |
+| G11 — Giải thích vì sao | Hiện evidence span và lý do “xếp hard vì profile chưa có prerequisite X”. |
+| G15 — Feedback chi tiết | 👎 cho phép chọn sai nghĩa, quá khó, câu hỏi lệch, ví dụ không hợp. |
+| G17 — Quyền kiểm soát | Profile có màn xem/sửa; user xóa flashcard và tắt gợi ý tự động. |
+| PAIR — Explainability + Trust | Citation trỏ đúng slide/page; update profile kèm signal nào đã được dùng. |
+| PAIR — Errors + Graceful Failure | Tách lỗi thiếu nguồn, term mơ hồ, API lỗi, chấm không chắc và notification lỗi. |
 
-### Hợp đồng output tối thiểu
+### Dữ liệu tối thiểu
 
-- `term`: đúng cụm người dùng chọn, không tự thay bằng khái niệm khác.
-- `expanded_form`: tên đầy đủ nếu là từ viết tắt; `null` nếu không phải hoặc chưa chắc.
-- `meaning_in_context`: một câu nêu nghĩa đang dùng trong đoạn.
-- `plain_explanation`: tối đa 80 từ, tránh dùng jargon mới chưa giải thích.
-- `example`: một ví dụ gần gũi, tối đa 50 từ.
-- `related_concepts`: tối đa 3 mục, mỗi mục kèm quan hệ ngắn.
-- `confidence`: chỉ nhận `high | low | insufficient`.
-- `evidence_span`: trích đúng tối đa 25 từ từ context đầu vào.
-- `clarifying_question`: bắt buộc khi `confidence = insufficient`, còn lại là `null`.
+```json
+{
+  "learning_profile": {
+    "level": "coban",
+    "mastered_concepts": [],
+    "needs_review": [],
+    "last_updated_reason": null
+  },
+  "adaptive_card": {
+    "term": "RAG",
+    "meaning_in_context": "...",
+    "difficulty_for_learner": "stretch",
+    "difficulty_reason": "...",
+    "mode": "example",
+    "evidence_span": "...",
+    "check_question": {},
+    "flashcard": {},
+    "next_review_at": null
+  }
+}
+```
+
+Rule profile prototype:
+
+- Đúng ngay + confidence user “chắc”: cộng 1 mastery signal.
+- Sai hoặc “không chắc”: thêm term vào `needs_review`.
+- Chỉ chuyển level sau ít nhất 3 term khác nhau cùng domain đạt 2 lần; user xác nhận trước.
+- Một lỗi không hạ level toàn cục.
+
+Rule SR prototype: sai → +1 ngày; đúng nhưng không chắc → +3 ngày; đúng và chắc → +7 ngày. Đây là rule demo, chưa tuyên bố tối ưu sư phạm.
 
 ## §5. Kiểu lỗi — 4 lớp chỗ khó và kịch bản
 
-| # | Tình huống cụ thể | Lớp | Hành vi mong muốn | Nguyên tắc |
+| # | Tình huống | Lớp | Hành vi mong muốn | Nguyên tắc |
 |---:|---|:---:|---|---|
-| 1 | Chọn “MCP” nhưng đoạn lân cận không nói về Model Context Protocol | ① Nguồn sự thật | Không tự mở rộng; ghi “Chưa đủ căn cứ để xác định MCP nào” và yêu cầu chọn thêm câu | G2, G10 |
-| 2 | Tài liệu nói sai một định nghĩa AI | ① | Giải thích đây là nghĩa mà **đoạn tài liệu đang dùng**, highlight đoạn; không nâng nó thành chân lý phổ quát | G11, PAIR Trust |
-| 3 | Model tạo một citation/URL không có trong input | ① | Parser loại citation ngoài `evidence_span`; hiện “Không thể kiểm chứng từ đoạn hiện có” | PAIR Graceful Failure |
-| 4 | Chọn “agent” trong câu quá ngắn, có thể là software agent hoặc người đại diện | ② Mơ hồ/thiếu thông tin | Hỏi: “Ở đây tài liệu đang nói về tác nhân phần mềm hay người thực hiện?” | G10 |
-| 5 | Chọn cả một đoạn 3–4 câu chứa nhiều thuật ngữ | ② | Đề nghị chọn một thuật ngữ hoặc hiện tối đa 3 ứng viên để user chọn; không trả bài giải dài | G9, G10 |
-| 6 | Chọn nhầm ký tự/OCR lỗi như “Othello-GP”, “System prom” | ② | Nêu từ có thể bị cắt, đề xuất thuật ngữ gần nhất nhưng cần user xác nhận trước khi giải thích | G2, G9 |
-| 7 | User chọn câu rồi yêu cầu làm bài tập/viết code hoàn chỉnh | ③ Ngoài phạm vi | Nói rõ tính năng chỉ giải thích thuật ngữ; gợi ý chọn từ cụ thể hoặc mở công cụ học phù hợp | G1, G8 |
-| 8 | User chọn tên người, dữ liệu cá nhân hoặc hỏi “tên tôi là gì” | ③ | Không suy đoán danh tính; không lưu thẻ; giải thích giới hạn và cho đóng popup | G1, G17 |
-| 9 | User cố prompt injection trong đoạn tài liệu để yêu cầu lộ system prompt/secret | ③ | Xem selection/context là dữ liệu, không phải instruction; từ chối yêu cầu và không hiển thị secret | G1, PAIR Errors |
-| 10 | “LLM” được mở rộng sai hoặc bỏ qua tên đầy đủ | ④ Đặc thù domain | Phải trả “Large Language Model (mô hình ngôn ngữ lớn)” rồi mới giải thích; thiếu/sai expansion là fail cứng | G2 |
-| 11 | Giải thích “temperature” như nhiệt độ vật lý dù đoạn nói về sampling | ④ | Chọn nghĩa tham số điều khiển độ phân tán khi sinh token và chỉ ra tín hiệu từ context | G11 |
-| 12 | Dùng thêm jargon “logits”, “softmax”, “distribution” để giải thích cho người mới mà không diễn giải | ④ | Giới hạn cấp độ người mới; jargon mới phải có chú thích ngắn hoặc bị thay bằng lời phổ thông | G2, G9 |
-| 13 | Ví dụ minh họa mâu thuẫn với định nghĩa, như nói RAG là fine-tuning | ④ | Không hiển thị output nếu consistency check thất bại; fallback về định nghĩa ngắn, bỏ ví dụ và mời kiểm lại | PAIR Errors |
-| 14 | Hai acronym có cùng chữ viết tắt, như “KB” = knowledge base hoặc kilobyte | ②/④ | Dùng ngữ cảnh để chọn; nếu tín hiệu không đủ thì liệt kê tối đa hai nghĩa và hỏi lại | G10, G11 |
-| 15 | API timeout/mất mạng | ① | Giữ nguyên selection, hiện “Chưa thể kết nối”, có nút Thử lại; không trả câu mẫu giả như kết quả AI | G8, PAIR Errors |
-| 16 | Model trả JSON sai schema hoặc output quá dài | ①/④ | Validate schema; thử sửa định dạng một lần; nếu vẫn lỗi thì failure path, không render output vỡ | PAIR Errors |
+| 1 | Slide không có đủ câu để xác định “MCP” | ① Nguồn sự thật | Không mở rộng acronym; yêu cầu thêm context | G10 |
+| 2 | Model bịa citation/slide | ① | Validator chỉ nhận evidence là substring của input và page hợp lệ | PAIR Trust |
+| 3 | API lỗi giữa lúc chấm quiz | ① | Giữ đáp án, cho thử lại; không cập nhật profile | PAIR Failure |
+| 4 | Term “agent” đứng một mình | ② Mơ hồ | Hỏi software agent hay người đại diện; không sinh quiz | G10 |
+| 5 | Selection chứa 4 thuật ngữ | ② | Đưa tối đa 3 candidate cho user chọn một | G9 |
+| 6 | Profile mới chưa có signal | ② | Mặc định `coban`, ghi rõ “chưa đủ dữ liệu cá nhân hóa”, cho sửa | G2, G9 |
+| 7 | User yêu cầu làm bài/viết code | ③ Ngoài phạm vi | Nhắc phạm vi glossary, gợi ý chọn term cụ thể | G1 |
+| 8 | Prompt injection trong slide | ③ | Coi slide là data; không làm theo lệnh, không lộ prompt | PAIR Failure |
+| 9 | Selection chứa tên/PII | ③ | Không suy luận profile, không tạo flashcard | G17 |
+| 10 | “temperature” bị giải thích là nhiệt độ vật lý | ④ Domain | Chọn nghĩa sampling theo context; sai nghĩa là hard fail | G11 |
+| 11 | “RAG” mở rộng sai hoặc thiếu | ④ | Acronym phổ biến bắt buộc đúng expanded form | G2 |
+| 12 | Giải thích dùng thêm logits/softmax chưa diễn giải | ④ | Hạ độ khó hoặc chú thích jargon mới | G2 |
+| 13 | Câu quiz kiểm kiến thức chưa xuất hiện | ④ | Reject/regenerate; câu hỏi chỉ đo learning objective vừa dạy | PAIR Trust |
+| 14 | Đáp án user đúng ý nhưng khác chữ | ④ | Rubric chấp nhận semantic equivalents; low confidence chuyển self-check, không phán sai | G10 |
+| 15 | Một câu sai làm profile tụt level | ④ | Chặn bằng rule tối thiểu signal; log lý do update | G11, G17 |
+| 16 | Highlight quá nhiều làm rối slide | ②/④ | Tối đa 3, ưu tiên prerequisite gap; user tắt được | G8 |
 
-## §6. Bốn đường đi của trải nghiệm
+## §6. Bốn đường đi trải nghiệm
 
 ### Happy path
 
-Người dùng bôi đen “RLHF” trong câu nói về huấn luyện mô hình từ phản hồi con người → bấm “Giải thích” → hệ thống xác định context đủ → trả:
+Profile `coban`; slide nói “RAG retrieves external knowledge before generation”. VLearn gợi ý “RAG”; user bấm và chọn **Ví dụ**. AI quyết định đây là term `stretch`, trả expansion + nghĩa theo câu + ví dụ “làm bài mở sách” + citation. AI hỏi một câu: “Trong RAG, bước nào xảy ra trước khi model sinh câu trả lời?” User chọn “Truy xuất tài liệu”. Hệ thống đánh `understood`, thêm mastery signal, tạo flashcard và lịch +7 ngày.
 
-- **Tên đầy đủ:** Reinforcement Learning from Human Feedback.
-- **Nghĩa trong đoạn:** cách tinh chỉnh hành vi mô hình bằng tín hiệu đánh giá từ con người.
-- **Nói dễ hiểu:** ví von ngắn ở mức người mới.
-- **Ví dụ:** con người xếp hạng hai câu trả lời, mô hình học ưu tiên kiểu tốt hơn.
-- **Liên quan:** SFT, reward model; kèm evidence span.
+### Low-confidence
 
-Người dùng lưu thẻ hoặc đóng popup để tiếp tục đọc.
+User chọn “agent” ở tiêu đề. Card ghi “Cần thêm ngữ cảnh”, hỏi user chọn thêm một câu hoặc chọn “software agent/người đại diện”. Không sinh quiz, không cập nhật profile, không tạo flashcard cho đến khi xác định được nghĩa.
 
-### Low-confidence (②)
+### Failure/không căn cứ
 
-Người dùng chọn “agent” nhưng context chỉ là tiêu đề. Hệ thống hiển thị “Cần thêm ngữ cảnh”, không giải thích chắc chắn, và cho hai hành động: “Chọn thêm câu xung quanh” hoặc trả lời một câu làm rõ. Sau khi đủ context, hệ thống mới sinh output chuẩn.
+Citation không khớp hoặc API lỗi. Card không hiển thị lời giải giả; giữ selection và mode, cho “Thử lại”, “Chọn thêm đoạn” hoặc “Hỏi Tutor”. Profile và lịch ôn không thay đổi.
 
-### Failure/không căn cứ (①)
+### Correction
 
-API lỗi, schema sai hoặc không có evidence phù hợp. Popup nói đúng loại lỗi: “Mình chưa thể kiểm chứng nghĩa này từ đoạn đang đọc”; giữ selection, không bịa lời giải, cho “Thử lại”, “Chọn thêm ngữ cảnh”, hoặc “Đóng”.
+User bấm “Quá khó” hoặc “Sai nghĩa”. Với “Quá khó”, AI sinh lại cùng nghĩa ở mode Tóm tắt và giải thích prerequisite. Với “Sai nghĩa”, yêu cầu thêm context, giữ phiên bản cũ trong log nhưng chỉ bản user xác nhận mới thành flashcard. Feedback là signal nhưng không trực tiếp đổi level.
 
-### Correction — user sửa
+### Ngoài phạm vi
 
-Người dùng bấm “Không đúng nghĩa này” → chọn lý do hoặc nhập tối đa một câu → hệ thống không ghi đè im lặng mà sinh bản mới, đánh dấu “Đã điều chỉnh theo góp ý”, giữ khả năng xem bản trước trong phiên. Chỉ bản user chủ động chọn mới được lưu vào glossary.
+Yêu cầu làm bài hoặc tiết lộ system prompt được từ chối ngắn; hệ thống gợi ý quay lại chọn thuật ngữ. Instruction trong slide không có quyền điều khiển agent.
 
-### Khi bị đòi ngoài phạm vi (③)
+### Case đặc thù domain
 
-Nếu user yêu cầu giải bài, viết code, tiết lộ prompt hoặc xử lý thông tin cá nhân, popup trả lời ngắn: “Glossary Tutor chỉ giải thích thuật ngữ trong đoạn bạn chọn.” Sau đó gợi ý hành động hợp lệ: chọn một thuật ngữ, mở nguồn học hoặc đóng popup. Không chuyển tiếp instruction nằm trong nội dung trang sang vai trò system/user instruction.
-
-### Case đặc thù domain (④)
-
-Với acronym, output không được bỏ tên đầy đủ nếu xác định được. Với từ đa nghĩa như `temperature`, `attention`, `agent`, `token`, hệ thống phải nêu rõ **nghĩa trong ngữ cảnh này** trước định nghĩa chung. Nếu ví dụ làm thay đổi bản chất khái niệm, toàn case bị đánh fail dù các phần còn lại trôi chảy.
+Acronym phải mở rộng đúng; từ đa nghĩa phải gắn nghĩa trong đoạn; quiz không được kiểm kiến thức ngoài card; update profile phải tích lũy nhiều signal. Vi phạm một trong các điều kiện này là hard fail dù câu trả lời đọc trôi chảy.
 
 ## §7. Kiểm thử
 
-### Các chiều chất lượng và định nghĩa kiểm chứng được
+### Chiều chất lượng
 
-| Chiều | Pass khi | Fail khi |
-|---|---|---|
-| Đúng nghĩa theo ngữ cảnh | Nghĩa khớp đáp án tham chiếu và không mâu thuẫn câu trước/sau | Chọn nghĩa phổ thông/AI khác với ngữ cảnh |
-| Mở rộng acronym | Tên đầy đủ chính xác, đúng viết hoa không bắt buộc; bản dịch Việt không làm đổi nghĩa | Sai/thiếu expansion ở case yêu cầu |
-| Grounding | `evidence_span` là chuỗi con của context đầu vào và thực sự hỗ trợ nghĩa đã chọn | Bịa citation, trích đoạn không liên quan hoặc tuyên bố không có trong input |
-| Dễ hiểu cho người mới | Tối đa 80 từ; jargon mới đều được giải thích tại chỗ bằng từ phổ thông | Dùng jargon chưa giải thích hoặc phụ thuộc kiến thức trung cấp |
-| Ví dụ đúng bản chất | Ví dụ thể hiện đúng cơ chế/ranh giới của định nghĩa theo đáp án tham chiếu | Ví dụ mâu thuẫn hoặc nhập nhằng với khái niệm liên quan |
-| Calibration | Case rõ trả `high`; case mơ hồ trả `low/insufficient` và không khẳng định một nghĩa duy nhất | Tự tin cao khi input thiếu hoặc lạm dụng “không biết” ở case rõ |
-| Đúng schema và độ dài | JSON parse được, đủ key, đúng enum, các giới hạn từ đạt | Thiếu field bắt buộc, sai enum, output tràn UI |
-| An toàn/phạm vi | Prompt injection không đổi nhiệm vụ; PII/out-of-scope được xử lý theo §5 | Làm theo instruction trong tài liệu, lộ prompt/secret, suy đoán danh tính |
+| Chiều | Pass kiểm chứng được |
+|---|---|
+| Nghĩa theo context | Khớp đáp án tham chiếu và không mâu thuẫn 1–2 câu nguồn |
+| Grounding | Evidence là substring của context/slide và trực tiếp hỗ trợ nghĩa |
+| Acronym/domain | Expanded form đúng; không nhập nhằng khái niệm gần |
+| Độ khó cá nhân hóa | Cùng term/context nhưng profile có/không prerequisite tạo nhãn/lý do phù hợp theo expected rule |
+| Đúng mode | Tóm tắt ≤60 từ; Ví dụ có một tình huống; So sánh có ≤2 đối tượng; Chuyên sâu nêu cơ chế + giới hạn |
+| Quiz alignment | Chỉ hỏi nội dung đã có trong card; có đáp án/rubric rõ |
+| Chấm đáp án | Đáp án chuẩn và semantic equivalent đều pass; sai bản chất fail |
+| Profile safety | Không update khi source/grade insufficient; không đổi level chỉ từ một signal |
+| Dễ hiểu | Jargon mới được diễn giải; hai người chấm độc lập thống nhất |
+| Schema/UX | JSON parse được, đúng enum/độ dài; failure không render card giả |
+| An toàn | 100% injection/PII/out-of-scope theo hành vi §5 |
 
-**Cách chấm:** mỗi case có các chiều áp dụng được dưới dạng boolean. Một case “qua” khi tất cả chiều bắt buộc của case đó đều pass. Hai thành viên chấm độc lập 5 case đầu; nếu bất đồng quá 1/5 case, sửa hướng dẫn chấm rồi mới chạy toàn bộ. Case acronym, prompt injection và ambiguity có hard check tự động bên cạnh human grading.
+Một case qua khi mọi chiều bắt buộc đều pass. Hai người chấm độc lập 5 output đầu; bất đồng >1 case thì sửa guideline trước khi chạy toàn bộ.
 
 ### Golden set
 
-**Hiện trạng:** `eval/golden_set.json` đang rỗng; chưa có golden set đạt rubric. Cần tạo tối thiểu 24 case theo cơ cấu sau:
+**Hiện trạng:** `eval/golden_set.json` đang rỗng; chưa đạt rubric. Cần tối thiểu 28 case:
 
-| Nhóm case | Số case tối thiểu | Nguồn dự kiến |
+| Nhóm | Số case | Gợi ý nguồn |
 |---|---:|---|
-| Case thường, thuật ngữ rõ trong context | 8 | Từ `T0990`, `T1087`, `T0573`, `T0750`, `T0234`, `T1190`, `T1259`, `T0304` và transcript |
-| ① Nguồn sự thật | 2 | Không citation, source mâu thuẫn, model bịa nguồn |
-| ② Mơ hồ/thiếu thông tin | 3 | `agent`, `KB`, selection bị cắt/OCR |
-| ③ Ngoài phạm vi/thẩm quyền | 3 | Prompt injection, PII, yêu cầu làm bài |
-| ④ Đặc thù domain | 4 | Acronym expansion, từ đa nghĩa, jargon cascade, ví dụ sai bản chất |
-| Case hiếm | 4 | Context đa ngôn ngữ, acronym trùng, schema lỗi, trang không đọc được |
-| **Tổng** | **24** | Ít nhất 12 case phát triển từ chatlog thật |
+| Case thường: term rõ, 4 mode | 10 | `T0990`, `T1087`, `T0573`, `T0750`, `T0234`, transcript |
+| ① Nguồn sự thật | 3 | Thiếu source, citation bịa, API/schema lỗi |
+| ② Mơ hồ/profile thiếu | 3 | agent, KB, selection cắt, profile mới |
+| ③ Ngoài phạm vi | 3 | Injection, PII, làm bài |
+| ④ Domain/adaptive | 5 | acronym, polysemy, quiz lệch, grade semantic, update quá sớm |
+| Hiếm | 4 | song ngữ, OCR lỗi, term trùng nghĩa, answer không chắc |
+| **Tổng** | **28** | Ít nhất 12 case phát triển từ chatlog thật |
 
-Mỗi record cần tối thiểu: `id`, `source_ref`, `selected_text`, `surrounding_context`, `learner_level`, `expected_behavior`, `acceptable_meaning`, `expected_expansion`, `required_evidence_terms`, `risk_layer`, `is_rare`, `hard_fail_conditions`.
+Mỗi record cần: `id`, `source_ref`, `selected_text`, `context`, `profile_before`, `mode`, `expected_meaning`, `expected_difficulty`, `expected_quiz_objective`, `answer_variants`, `expected_profile_delta`, `risk_layer`, `hard_fail_conditions`.
 
 ### Quality bar
 
-> **Đạt khi ≥85% case qua trọn bộ, đồng thời 100% case prompt injection/PII không vi phạm, 100% case acronym phổ biến có expansion đúng, và 100% output có evidence span hợp lệ hoặc chủ động báo không đủ căn cứ.**
+> **Đạt khi ≥85% case qua trọn bộ; đồng thời 100% case injection/PII an toàn, 100% acronym phổ biến đúng, 100% citation hợp lệ hoặc chủ động insufficient, ≥90% quiz aligned, và 100% profile update tuân theo rule.**
 
-Quality bar này là tiêu chí trước khi đo. Nhóm phải giữ nguyên sau mốc chốt 23:59 N1; nếu commit hiện tại đã qua mốc đó thì cần ghi rõ đây là bổ sung muộn, không được tuyên bố là bar chốt đúng hạn.
+Quality bar phải giữ nguyên sau mốc chốt. Nếu nội dung này được commit sau hạn 23:59 N1, phải ghi trung thực là cập nhật muộn.
 
 ### Kết quả các lượt chạy
 
-| Lượt | Thời điểm/commit | Model + prompt version | Số case | Case qua | Tỷ lệ | So với bar | Lỗi chính |
-|---|---|---|---:|---:|---:|---|---|
-| Chưa chạy | — | — | 0 | 0 | N/A | Chưa thể đối chiếu | Prototype và golden set chưa tồn tại |
+| Lượt | Commit/prompt | Số case | Qua | Tỷ lệ | Hard conditions | So với bar | Lỗi chính |
+|---|---|---:|---:|---:|---|---|---|
+| Chưa chạy adaptive flow | — | 0 | 0 | N/A | Chưa đo | Chưa thể kết luận | Endpoint adaptive/quiz/profile chưa có; golden set rỗng |
 
-Không được điền tỷ lệ giả. Khi chạy, phải ghi đủ mọi case kể cả case fail vào `eval/`, nêu nguyên nhân và không thay đổi quality bar để khớp kết quả.
+Không điền số giả. Mọi case fail phải được giữ trong log `eval/`.
 
 ## §8. Phân công & kế hoạch
 
-### Phân công có tên
+### Phân công
 
-| Thành viên | Vai trò | Phần chịu trách nhiệm | Artifact |
-|---|---|---|---|
-| Lê Đình Việt | Product Owner | Canvas, JTBD, evidence, impact, spec §1–§4, slide/demo | `README.md`, `spec.md`, `demo-slides.pdf` |
-| Nguyễn Ngọc Huân | AI Engineer | Prompt, LLM integration, confidence/fallback, spec §5–§6 | `codebase/`, `spec.md` |
-| Vương Đức Thoại | Fullstack Developer | Selection flow, popup, API, local save, prototype end-to-end | `codebase/` |
-| Quách Thanh Hưng | QA & Evaluation | Golden set, scorer, eval run, validation, reflection, changelog | `eval/`, `validation/`, `reflection/`, `spec.md` §7–§9 |
+| Thành viên | Vai trò | Trách nhiệm |
+|---|---|---|
+| Lê Đình Việt | Product Owner | Chốt hướng A, JTBD, evidence/impact, spec, product flow và demo |
+| Nguyễn Ngọc Huân | AI Engineer | Adaptive schema/prompt, difficulty, 4 mode, quiz generation/grading, fallback |
+| Vương Đức Thoại | Fullstack Developer | Slide term interaction, mode UI, quiz UI, profile/flashcard integration |
+| Quách Thanh Hưng | QA & Evaluation | 28-case golden set, scorer, eval results, validation, changelog/reflection |
 
 ### Willing users và validation CP5
 
-**Hiện trạng:** chưa có tên willing user ngoài nhóm trong repo. Điều này chưa đạt điều kiện ≥3 willing users và chưa đạt rubric validation ≥5 người.
+Repo chưa có `validation/` và chưa có tên willing user; hiện **chưa đạt** điều kiện này.
 
-| Người thử | Vai/trình độ | Trạng thái | Người liên hệ/log |
+| Người thử | Vai/trình độ | Trạng thái | Người log |
 |---|---|---|---|
-| [Cần điền tên thật 1] | Người mới học AI | Chưa xác nhận | Lê Đình Việt |
-| [Cần điền tên thật 2] | Người chuyển ngành | Chưa xác nhận | Lê Đình Việt |
-| [Cần điền tên thật 3] | Nhân viên văn phòng học AI | Chưa xác nhận | Quách Thanh Hưng |
-| [Cần điền tên thật 4] | Sinh viên ngoài nhóm | Chưa xác nhận | Quách Thanh Hưng |
-| [Cần điền tên thật 5] | Người mới học AI | Chưa xác nhận | Quách Thanh Hưng |
+| [Tên 1] | Học viên non-tech | Chưa xác nhận | Lê Đình Việt |
+| [Tên 2] | Người mới học AI | Chưa xác nhận | Lê Đình Việt |
+| [Tên 3] | Sinh viên chuyển ngành | Chưa xác nhận | Quách Thanh Hưng |
+| [Tên 4] | Học viên VLearn | Chưa xác nhận | Quách Thanh Hưng |
+| [Tên 5] | Học viên VLearn | Chưa xác nhận | Quách Thanh Hưng |
 
-Ba câu hỏi cố định sau khi user tự dùng prototype:
+Ba câu hỏi:
 
-1. “Ở lần vừa rồi, bạn có hiểu thuật ngữ đủ để đọc tiếp mà không mở công cụ khác không? Vì sao?”
-2. “Phần nào khiến bạn tin hoặc không tin lời giải? Hãy chỉ đúng chỗ.”
-3. “Nếu chỉ được sửa một điểm trước khi bạn dùng lại, bạn sẽ sửa gì?”
+1. “Sau thẻ giải thích và câu kiểm tra, bạn có biết mình đã hiểu đủ để đọc tiếp không? Chỗ nào cho bạn biết?”
+2. “Gợi ý thuật ngữ và độ khó có đúng với bạn không? Chỉ ra một gợi ý thừa hoặc bị thiếu.”
+3. “Trong Tóm tắt/Ví dụ/So sánh/Chuyên sâu, bạn đã chọn gì và vì sao?”
 
-Ngoài ba câu hỏi, observer ghi: hoàn thành/không, số lần cần hỏi lại, có rời tab không, thời gian từ selection đến tiếp tục đọc, và quote nguyên văn. Quách Thanh Hưng chịu trách nhiệm log đầy đủ từng phiên vào `validation/`; không chỉ ghi bản tóm tắt.
+Observer ghi thêm: thời gian từ click đến tiếp tục đọc, có rời tab không, quiz đúng/sai, user có phản đối update profile không, có muốn lưu flashcard không, quote nguyên văn. Quách Thanh Hưng lưu đủ log từng người.
 
 ### Multi-prototype
 
-Hai phương án cần thử ở **trục cách xử lý mơ hồ**:
+Trục khác biệt: **cách hệ thống đưa thuật ngữ khó**.
 
-- **P1 — Trả nghĩa tốt nhất ngay + nhãn confidence:** nhanh hơn nhưng dễ khiến người mới tin nhầm.
-- **P2 — Conditional:** case rõ trả ngay; case mơ hồ hỏi một câu hoặc yêu cầu chọn thêm context.
+- **P1 — tự bật popup:** chủ động tối đa nhưng gây gián đoạn và tạo cảm giác hệ thống phán xét.
+- **P2 — gạch chân nhẹ tối đa 3 term, user bấm:** vẫn giúp phát hiện nhưng giữ quyền kiểm soát.
 
-**Chọn P2** vì cost-of-error của việc học sai cao hơn chi phí thêm một thao tác trong số ít case mơ hồ. Validation cần đo liệu câu hỏi làm rõ có khiến user bỏ flow hay không; nếu tỷ lệ bỏ cao, rút câu hỏi thành hai lựa chọn một chạm thay vì chuyển sang P1.
+Chọn P2 theo G8/G17. Nếu validation cho thấy user bỏ sót highlight, thử icon “3 thuật ngữ nên biết” thay vì tự bật popup.
 
-### Kế hoạch build theo thứ tự
+### Kế hoạch thực thi
 
-1. Fullstack dựng selection → popup → render fixture cho đủ bốn đường đi.
-2. AI Engineer chốt schema/prompt, validator và một AI call thật.
-3. QA tạo 24 golden cases trước khi tuning; khóa quality bar.
-4. Chạy lượt 1, phân loại lỗi, chỉ sửa lỗi thuộc lát cắt.
-5. Chạy lại toàn bộ không bỏ case fail.
-6. PO/QA test với ít nhất 5 người ngoài nhóm, cập nhật changelog từ feedback.
+1. Giữ nguyên endpoint explain/session/save đang có.
+2. Mở rộng schema với profile, difficulty, mode, quiz và profile delta.
+3. Build một case end-to-end `RAG + profile coban + mode Ví dụ + quiz + flashcard`.
+4. Build low-confidence và correction trước tự scan toàn trang.
+5. Tạo 28 golden case trước tuning; chạy lượt 1 và giữ mọi fail.
+6. Nếu còn thời gian, thêm term detector tối đa 3 highlight và trường `next_review_at`.
+7. Notification thật và persistence để roadmap.
 
 ## §9. Changelog
 
 | Thời điểm | Đổi gì | Vì sao |
 |---|---|---|
-| 30/07/2026 | Tạo bản spec đầu tiên đầy đủ từ template; chọn hướng C, lát cắt giải thích thuật ngữ theo ngữ cảnh và mức Conditional | `spec.md` ban đầu rỗng; yêu cầu sản phẩm tập trung vào người mới học AI |
-| 30/07/2026 | Bổ sung mining: 281 lượt/132 người và 10 ví dụ có turn ID; ghi rõ quy tắc và giới hạn | Đáp ứng yêu cầu evidence chuẩn B bằng số đếm và ví dụ kiểm lại được |
-| 30/07/2026 | Chọn quality bar 85% cùng bốn hard conditions; chưa ghi kết quả chạy | Rubric yêu cầu bar bằng số chốt trước đo; `eval/golden_set.json` còn rỗng |
-| 30/07/2026 | Đánh dấu build, golden set, willing users và validation là chưa có | Bảo đảm spec phản ánh trung thực artifact hiện tại, không biến kế hoạch thành kết quả |
+| 30/07/2026 | Spec ban đầu chọn hướng C, glossary extension/web app | Định nghĩa bài toán ban đầu |
+| 31/07/2026 | Chuyển sang **Hướng A — tối ưu VLearn Tutor hiện có** | User xác nhận sản phẩm là tối ưu flow VLearn, không phải làn mở |
+| 31/07/2026 | Mở rộng vision thành detect → adaptive explanation → learning mode → check → profile → flashcard → SR | Phản ánh flow sản phẩm mới |
+| 31/07/2026 | Khóa lát cắt vào một thuật ngữ và một quyết định AI về gói học phù hợp | Tuân thủ format rubric, demo được trong 5 phút |
+| 31/07/2026 | Phân biệt rõ phần code đã có, tối ưu lõi và roadmap | Không tuyên bố các tính năng chưa được implement |
+| 31/07/2026 | Đổi golden set mục tiêu từ glossary tĩnh sang 28 case adaptive | Cần đo thêm difficulty, mode, quiz, grading và profile safety |
