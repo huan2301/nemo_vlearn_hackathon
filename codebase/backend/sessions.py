@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from schemas import SessionResponse, SavedTerm
+from schemas import SessionResponse, SavedTerm, LearningProgress
 
 class Session:
     def __init__(self, session_id: str, level: str = "coban"):
@@ -12,6 +12,11 @@ class Session:
         self.updated_at: str = now_str
         self.saved_terms: Dict[str, SavedTerm] = {}
         self.chat_history: List[Dict[str, str]] = []
+
+        # --- Learning Progress: theo dõi kết quả quiz để tính accuracy + streak ---
+        self.quiz_attempted_count: int = 0
+        self.quiz_correct_count: int = 0
+        self.current_streak: int = 0
 
     def update_level(self, new_level: str):
         self.level = new_level
@@ -24,8 +29,50 @@ class Session:
             created_at=self.created_at,
             updated_at=self.updated_at,
             saved_terms_count=len(self.saved_terms),
-            chat_turns_count=len(self.chat_history)
+            chat_turns_count=len(self.chat_history),
+            quiz_attempted_count=self.quiz_attempted_count,
+            quiz_correct_count=self.quiz_correct_count,
         )
+
+
+# ==================== Spaced Repetition (SM-2 rút gọn) ====================
+# quality: "again" (quên) | "hard" (khó nhớ) | "good" (nhớ được) | "easy" (nhớ dễ dàng)
+# Ánh xạ sang thang điểm SM-2 gốc (0-5) để tính ease_factor/interval theo đúng công thức chuẩn.
+_QUALITY_TO_SM2_SCORE: Dict[str, int] = {
+    "again": 0,
+    "hard": 3,
+    "good": 4,
+    "easy": 5,
+}
+
+
+def _apply_srs_review(saved_term: SavedTerm, quality: str) -> None:
+    """Cập nhật lịch ôn tập (repetitions/ease_factor/interval_days/next_review_at) của 1
+    flashcard theo thuật toán SM-2 rút gọn, dựa trên mức độ nhớ người học tự đánh giá
+    (hoặc suy ra từ kết quả quiz đúng/sai — xem record_quiz_result)."""
+    score = _QUALITY_TO_SM2_SCORE.get(quality, 3)
+
+    if score < 3:
+        # Quên bài -> học lại từ đầu, nhắc ôn lại sớm (ngay hôm sau) thay vì đợi lâu.
+        saved_term.repetitions = 0
+        saved_term.interval_days = 1
+    else:
+        if saved_term.repetitions == 0:
+            saved_term.interval_days = 1
+        elif saved_term.repetitions == 1:
+            saved_term.interval_days = 6
+        else:
+            saved_term.interval_days = max(1, round(saved_term.interval_days * saved_term.ease_factor))
+        saved_term.repetitions += 1
+
+    # Công thức cập nhật ease_factor chuẩn của SM-2.
+    new_ease = saved_term.ease_factor + (0.1 - (5 - score) * (0.08 + (5 - score) * 0.02))
+    saved_term.ease_factor = max(1.3, round(new_ease, 2))
+
+    now = datetime.now()
+    saved_term.last_reviewed_at = now.isoformat()
+    saved_term.next_review_at = (now + timedelta(days=saved_term.interval_days)).isoformat()
+
 
 class SessionManager:
     def __init__(self):
@@ -70,7 +117,10 @@ class SessionManager:
             example=term_data.get("example", ""),
             evidence_span=term_data.get("evidence_span"),
             learner_level=term_data.get("learner_level", session.level),
-            created_at=now_str
+            is_difficult=term_data.get("is_difficult", False),
+            created_at=now_str,
+            # Flashcard mới -> coi như "đến hạn ôn ngay" cho tới lần ôn đầu tiên.
+            next_review_at=now_str,
         )
 
         session.saved_terms[term_id] = saved_term
@@ -98,5 +148,72 @@ class SessionManager:
 
     def get_active_count(self) -> int:
         return len(self._sessions)
+
+    # ==================== Learning Progress ====================
+
+    def get_progress(self, session_id: str) -> Optional[LearningProgress]:
+        session = self.get_session(session_id)
+        if not session:
+            return None
+        accuracy = (
+            session.quiz_correct_count / session.quiz_attempted_count
+            if session.quiz_attempted_count else 0.0
+        )
+        return LearningProgress(
+            session_id=session.session_id,
+            level=session.level,
+            saved_terms_count=len(session.saved_terms),
+            quiz_attempted_count=session.quiz_attempted_count,
+            quiz_correct_count=session.quiz_correct_count,
+            accuracy=round(accuracy, 4),
+            current_streak=session.current_streak,
+            updated_at=session.updated_at,
+        )
+
+    def record_quiz_result(self, session_id: str, is_correct: bool, term_id: Optional[str] = None) -> Optional[Session]:
+        """Cập nhật Learning Profile (số câu đúng/sai, streak) sau 1 lượt quiz, và nếu có
+        flashcard liên quan (term_id) thì cũng cập nhật lịch ôn tập SRS của flashcard đó
+        theo đúng kết quả (đúng ~ 'good', sai ~ 'again')."""
+        session = self.get_session(session_id)
+        if not session:
+            return None
+
+        session.quiz_attempted_count += 1
+        if is_correct:
+            session.quiz_correct_count += 1
+            session.current_streak += 1
+        else:
+            session.current_streak = 0
+        session.updated_at = datetime.now().isoformat()
+
+        if term_id and term_id in session.saved_terms:
+            saved_term = session.saved_terms[term_id]
+            _apply_srs_review(saved_term, "good" if is_correct else "again")
+
+        return session
+
+    # ==================== Flashcards: nhắc ôn lại theo spaced repetition ====================
+
+    def get_due_flashcards(self, session_id: str) -> List[SavedTerm]:
+        session = self.get_session(session_id)
+        if not session:
+            return []
+        now_str = datetime.now().isoformat()
+        due = [
+            t for t in session.saved_terms.values()
+            if not t.next_review_at or t.next_review_at <= now_str
+        ]
+        # Thẻ chưa từng ôn (next_review_at ban đầu = created_at) hoặc quá hạn lâu nhất lên trước.
+        due.sort(key=lambda t: t.next_review_at or "")
+        return due
+
+    def review_flashcard(self, session_id: str, term_id: str, quality: str) -> Optional[SavedTerm]:
+        session = self.get_session(session_id)
+        if not session or term_id not in session.saved_terms:
+            return None
+        saved_term = session.saved_terms[term_id]
+        _apply_srs_review(saved_term, quality)
+        session.updated_at = datetime.now().isoformat()
+        return saved_term
 
 session_manager = SessionManager()

@@ -1,0 +1,18 @@
+[
+  {
+    "run_number": 1,
+    "run_timestamp": "2026-07-31T10:41:53.868082",
+    "primary_model": "llama-3.3-70b-versatile",
+    "total_cases": 24,
+    "passed_cases": 18,
+    "failed_cases": 6,
+    "pass_rate_percentage": 75.0,
+    "quality_bar_target": 85.0,
+    "meets_quality_bar": false,
+    "hard_failures": {
+      "safety_injection_violations": 0,
+      "acronym_expansion_violations": 3
+    },
+    "archive_file": "eval_results_run01_2026-07-31T10-41-53.868082.json"
+  }
+]

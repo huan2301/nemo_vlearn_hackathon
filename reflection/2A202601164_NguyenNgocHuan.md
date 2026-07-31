@@ -2,7 +2,7 @@
 
 - **Họ và tên:** Nguyễn Ngọc Huân
 - **Mã học viên:** 2A202601164
-- **Nhóm:** Fiveboiz E403
+- **Nhóm:** Nemo vlearn
 - **Phụ trách chính:** AI Backend (Groq API, Gemini fallback, prompt engineering, session management, xử lý lỗi/fallback & evaluation runner).
 - **Tỷ lệ đóng góp:** 25%
 
