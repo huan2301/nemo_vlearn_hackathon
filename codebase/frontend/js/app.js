@@ -1,9 +1,10 @@
 // =====================================================================
 // AI Glossary Tutor — frontend logic
 // Calls the REAL backend (codebase/backend) — no mock data.
-// If your backend runs on a different host/port, change API_BASE below.
+// API_BASE comes from js/config.js (auto: localhost in dev, your deployed
+// backend URL in production) — edit config.js, not this file, to repoint it.
 // =====================================================================
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "http://127.0.0.1:8000";
 const LEARNER_LEVEL = "coban"; // fixed to the simplest level, per product decision
 
 // Real slides (8 curated pages of data/vlearn-pack/slides/d1-slide-hackathon.pdf,
@@ -40,6 +41,7 @@ let slidePageObserver = null;
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   bindNav();
+  $("apiDocsLink").href = `${API_BASE}/docs`;
   renderAllSlidePages(); // fire-and-forget — doesn't block the rest of boot
   bindSelectionLookup();
   bindResultActions();
