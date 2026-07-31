@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Glossary Tutor · VLearn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=5">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 5 L14 27 L16 22 L7 5 Z" fill="#0f172a"/>
+        <path d="M29 5 L18 27 L16 22 L25 5 Z" fill="#0f172a"/>
+        <path d="M20 5 L16 14 L18.4 19 L26 5 Z" fill="#dc2626"/>
+      </svg>
+      <div class="brand-text">
+        <b>AI Glossary Tutor</b>
+        <span>VLearn · VinUni AI Thực Chiến</span>
+      </div>
+    </div>
+
+    <nav class="topnav">
+      <a href="#reader" class="nav-link active" data-tab="reader">Đọc tài liệu</a>
+      <a href="#notebook" class="nav-link" data-tab="notebook">Sổ tay ôn tập</a>
+      <span class="nav-link disabled">Hỏi Tutor <em class="badge-soon">SẮP RA MẮT</em></span>
+    </nav>
+
+    <div class="topbar-actions">
+      <a class="btn btn-pill btn-outline" id="apiDocsLink" href="http://127.0.0.1:8000/docs" target="_blank" rel="noopener">↗ Mở API Docs</a>
+      <button class="icon-btn" id="themeToggle" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện">
+        <svg id="iconMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      </button>
+      <span class="status-pill" id="statusPill" title="Trạng thái backend">
+        <i class="dot" id="statusDot"></i><span id="statusText">Đang kiểm tra…</span>
+      </span>
+      <div class="avatar" id="avatarBadge" title="Số thuật ngữ đã lưu">0</div>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="grid2">
+
+    <!-- ============ LEFT: reader ============ -->
+    <section class="card reader-card" id="reader">
+      <div class="card-eyebrow eyebrow-red">ĐANG ĐỌC</div>
+      <h1 class="card-title">AI &amp; LLM Foundation — Day 1</h1>
+      <p class="card-sub">Slide thật của khoá học · bôi đen bất kỳ từ nào bên dưới để AI giải thích ngay tại chỗ.</p>
+
+      <div class="reader-body" id="readerBody">
+        <div class="slide-viewer" id="slideViewer">
+          <div class="slide-page-wrap" id="slidePageWrap">
+            <canvas id="slideCanvas"></canvas>
+            <div class="textLayer" id="slideTextLayer"></div>
+          </div>
+        </div>
+
+        <p class="slide-caption">
+          📑 Slide thật · <b>Day 1 — AI &amp; LLM Foundation</b> · trang 13/29 ·
+          <code>data/vlearn-pack/slides/d1-slide-hackathon.pdf</code> ·
+          bôi đen chữ ngay trên slide để tra cứu (giống bôi đen PDF bình thường)
+        </p>
+
+        <button id="lookupIcon" class="lookup-icon" title="Giải thích từ này">⚡</button>
+      </div>
+
+      <div class="hint-box">
+        💡 Thử bôi đen ngay trên slide: <b>token</b>, <b>tokenizer</b>, <b>JSON</b>, <b>model</b> — rồi bấm icon ⚡ hiện cạnh từ.
+      </div>
+    </section>
+
+    <!-- ============ RIGHT: tutor ============ -->
+    <aside class="card tutor-card">
+      <div class="card-eyebrow">AI GLOSSARY TUTOR</div>
+      <h2 class="card-title-sm">Giải thích ngay tại chỗ</h2>
+      <p class="card-sub">Kết nối trực tiếp tới backend thật — không còn dữ liệu giả.</p>
+
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-ico">🔍</span><b id="statLookups">0</b><small>TỪ ĐÃ TRA</small></div>
+        <div class="stat"><span class="stat-ico">💾</span><b id="statSaved">0</b><small>ĐÃ LƯU</small></div>
+        <div class="stat"><span class="stat-ico">🧠</span><b id="statModel">—</b><small>MODEL AI</small></div>
+        <div class="stat"><span class="stat-ico">🪪</span><b id="statSession">—</b><small>PHIÊN</small></div>
+      </div>
+
+      <div class="tutor-panel">
+
+        <div class="empty-state" id="emptyState">
+          <div class="empty-ico">🖍️</div>
+          <b>Chưa có từ nào được chọn</b>
+          <span>Bôi đen một từ ở tài liệu bên trái, rồi bấm icon ⚡ hiện ra cạnh từ đó.</span>
+        </div>
+
+        <div class="pipeline" id="pipeline" hidden>
+          <div class="pl-step" id="pl1"><span class="st"></span> Nhận từ được chọn: <b id="plTerm">—</b></div>
+          <div class="pl-step" id="pl2"><span class="st"></span> Gửi ngữ cảnh tới AI (Groq)</div>
+          <div class="pl-step" id="pl3"><span class="st"></span> Nhận giải thích, kiểm tra độ tin cậy</div>
+        </div>
+
+        <div class="result" id="result" hidden>
+          <div class="result-head">
+            <div>
+              <span class="term-abbr" id="rTerm">—</span>
+              <span class="term-full" id="rFull"></span>
+            </div>
+            <span class="confidence-tag" id="rConfidence"></span>
+          </div>
+
+          <div class="explain-box" id="rExplainBox">
+            <span class="lbl">Giải thích</span>
+            <p id="rExplain"></p>
+          </div>
+          <div class="example-box" id="rExampleBox">
+            <span class="lbl">📌 Ví dụ</span>
+            <p id="rExample"></p>
+          </div>
+          <div class="evidence-box" id="rEvidenceBox">
+            <span class="lbl">Trích từ ngữ cảnh</span>
+            <p id="rEvidence"></p>
+          </div>
+
+          <div class="fallback-box" id="rFallback" hidden></div>
+
+          <div class="related-box" id="rRelatedBox">
+            <span class="lbl">Khái niệm liên quan</span>
+            <div class="chips" id="rChips"></div>
+          </div>
+
+          <div class="result-actions">
+            <button class="btn btn-primary" id="btnSave">💾 Lưu để ôn tập</button>
+            <button class="btn btn-ghost" id="btnReset">↺ Chọn từ khác</button>
+          </div>
+          <div class="model-tag" id="rModelTag"></div>
+        </div>
+
+        <div class="error-state" id="errorState" hidden>
+          <b>⚠️ Không gọi được AI</b>
+          <p id="errorMsg">Kiểm tra backend đã chạy ở http://127.0.0.1:8000 chưa.</p>
+          <button class="btn btn-outline" id="btnRetry">↻ Thử lại</button>
+        </div>
+
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ============ NOTEBOOK ============ -->
+  <section class="card notebook-card" id="notebook">
+    <div class="notebook-head">
+      <div>
+        <div class="card-eyebrow">SỔ TAY ÔN TẬP</div>
+        <h2 class="card-title-sm">Các thuật ngữ đã lưu</h2>
+      </div>
+      <span class="count-pill" id="nbCount">0</span>
+    </div>
+    <p class="nb-empty" id="nbEmpty">Chưa có từ nào được lưu. Bấm "Lưu để ôn tập" sau khi xem giải thích.</p>
+    <div class="nb-list" id="nbList"></div>
+  </section>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="js/app.js?v=4" defer></script>
+</body>
+</html>
