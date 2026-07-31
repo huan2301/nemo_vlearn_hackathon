@@ -5,7 +5,7 @@ import urllib.error
 import logging
 from typing import Dict, Any, Tuple, Optional
 from config import config
-from prompts import GLOSSARY_SYSTEM_PROMPT, CHAT_TUTOR_SYSTEM_PROMPT
+from prompts import GLOSSARY_SYSTEM_PROMPT, CHAT_TUTOR_SYSTEM_PROMPT, QUIZ_ONLY_SYSTEM_PROMPT
 
 logger = logging.getLogger("vlearn_llm_client")
 logger.setLevel(logging.INFO)
@@ -260,6 +260,100 @@ explain_style: "{explain_style}"
         logger.error(f"All LLM APIs failed. Errors: {errors}")
         fallback_data = self._generate_rule_fallback(selected_text, surrounding_context, learner_level, explain_style)
         return fallback_data, "fallback/local-rule-engine"
+
+    def _coerce_quiz(self, quiz: Any) -> Optional[Dict[str, Any]]:
+        """Ép kiểu + validate cấu trúc tối thiểu của 1 quiz object đứng riêng (không lồng
+        trong response giải thích đầy đủ như _normalize_explain_payload). Trả None nếu
+        không cứu được (thiếu field / sai cấu trúc) thay vì để lỗi lan ra ngoài."""
+        if not isinstance(quiz, dict):
+            return None
+        quiz["question"] = self._coerce_str(quiz.get("question")) or ""
+        quiz["correct_key"] = self._coerce_str(quiz.get("correct_key")) or ""
+        quiz["explanation"] = self._coerce_str(quiz.get("explanation")) or ""
+        options = quiz.get("options")
+        if isinstance(options, list):
+            for opt in options:
+                if isinstance(opt, dict):
+                    opt["key"] = self._coerce_str(opt.get("key")) or ""
+                    opt["text"] = self._coerce_str(opt.get("text")) or ""
+        valid = (
+            bool(quiz.get("question"))
+            and isinstance(options, list)
+            and len(options) >= 2
+            and bool(quiz.get("correct_key"))
+            and any(isinstance(o, dict) and o.get("key") == quiz.get("correct_key") for o in options)
+        )
+        return quiz if valid else None
+
+    def _generate_fallback_quiz(self, term: str, plain_explanation: str, example: str) -> Dict[str, Any]:
+        """Quiz dự phòng khi cả Groq lẫn Gemini đều lỗi — dùng chính nội dung đã lưu
+        (plain_explanation) làm đáp án đúng, để câu hỏi vẫn có ý nghĩa thay vì bịa vô căn cứ."""
+        correct_text = (plain_explanation or f"Khái niệm liên quan đến {term}").strip()
+        if len(correct_text) > 90:
+            correct_text = correct_text[:87] + "..."
+        return {
+            "question": f"Theo giải thích đã lưu, '{term}' có nghĩa là gì?",
+            "options": [
+                {"key": "A", "text": correct_text},
+                {"key": "B", "text": "Một loại ngôn ngữ lập trình"},
+                {"key": "C", "text": "Một thiết bị phần cứng máy tính"},
+                {"key": "D", "text": "Không liên quan gì đến lĩnh vực AI"},
+            ],
+            "correct_key": "A",
+            "explanation": f"Đúng theo phần giải thích đã lưu: {plain_explanation}" if plain_explanation else "Đáp án A khớp với giải thích đã lưu cho thuật ngữ này.",
+        }
+
+    def generate_quiz_for_term(
+        self, term: str, meaning_in_context: str = "", plain_explanation: str = "",
+        example: str = "", learner_level: str = "coban"
+    ) -> Tuple[Dict[str, Any], str]:
+        """Sinh bổ sung ĐÚNG 1 câu quiz cho 1 thuật ngữ đã lưu sẵn (dùng cho 'Ôn tập tổng
+        hợp' — những thẻ lưu từ trước khi có tính năng lưu-quiz-theo-thẻ). Cùng chuỗi
+        fallback Groq -> Groq fallback -> Gemini -> rule-engine như explain_term, nhưng
+        gọn hơn vì chỉ cần đúng 1 object quiz, không cần giải thích đầy đủ lại từ đầu."""
+        user_prompt = f"""term: "{term}"
+meaning_in_context: "{meaning_in_context}"
+plain_explanation: "{plain_explanation}"
+example: "{example}"
+learner_level: "{learner_level}"
+"""
+        messages = [
+            {"role": "system", "content": QUIZ_ONLY_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+        errors = []
+
+        if self.groq_api_key:
+            try:
+                raw_out = self._call_groq_api(self.groq_api_key, self.groq_model, messages, json_mode=True)
+                quiz = self._coerce_quiz(self.clean_json_response(raw_out))
+                if quiz:
+                    return quiz, f"groq/{self.groq_model}"
+            except Exception as e:
+                errors.append(f"Groq Primary failed: {e}")
+
+        if self.groq_fallback_key or self.groq_api_key:
+            key_to_use = self.groq_fallback_key or self.groq_api_key
+            try:
+                raw_out = self._call_groq_api(key_to_use, self.groq_fallback_model, messages, json_mode=True)
+                quiz = self._coerce_quiz(self.clean_json_response(raw_out))
+                if quiz:
+                    return quiz, f"groq/{self.groq_fallback_model}"
+            except Exception as e:
+                errors.append(f"Groq Fallback failed: {e}")
+
+        if self.gemini_api_key:
+            try:
+                full_prompt = f"{QUIZ_ONLY_SYSTEM_PROMPT}\n\nUSER INPUT:\n{user_prompt}"
+                raw_out = self._call_gemini_api(self.gemini_api_key, self.gemini_model, full_prompt)
+                quiz = self._coerce_quiz(self.clean_json_response(raw_out))
+                if quiz:
+                    return quiz, f"gemini/{self.gemini_model}"
+            except Exception as e:
+                errors.append(f"Gemini failed: {e}")
+
+        logger.error(f"generate_quiz_for_term: all LLM APIs failed for '{term}'. Errors: {errors}")
+        return self._generate_fallback_quiz(term, plain_explanation, example), "fallback/local-rule-engine"
 
     def chat_tutor(self, message: str, context: Optional[str] = None, history: Optional[list] = None) -> Tuple[str, str]:
         """Hỏi đáp với AI Tutor qua hội thoại."""

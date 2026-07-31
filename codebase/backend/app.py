@@ -467,6 +467,52 @@ def save_term(session_id: str, payload: SavedTermCreate):
     return saved_term
 
 
+@app.post("/api/sessions/{session_id}/saved-terms/{term_id}/quiz", response_model=SavedTerm, tags=["Vocabulary"])
+def generate_term_quiz(session_id: str, term_id: str):
+    """Sinh bổ sung ĐÚNG 1 câu quiz cho 1 thuật ngữ đã lưu — dùng cho tính năng
+    'Ôn tập tổng hợp' ở frontend: những thẻ được lưu TRƯỚC KHI tính năng lưu-quiz-theo-thẻ
+    tồn tại sẽ chưa có sẵn quiz. Idempotent: nếu thẻ đã có quiz rồi thì trả về luôn, KHÔNG
+    gọi lại LLM (tránh tốn quota / đổi câu hỏi mỗi lần bấm lại)."""
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    saved_term = session.saved_terms.get(term_id)
+    if not saved_term:
+        raise HTTPException(status_code=404, detail=f"Term {term_id} in session {session_id} not found")
+
+    if saved_term.quiz:
+        return saved_term
+
+    quiz_dict, _used_model = llm_client.generate_quiz_for_term(
+        term=saved_term.term,
+        meaning_in_context=saved_term.meaning_in_context,
+        plain_explanation=saved_term.plain_explanation,
+        example=saved_term.example,
+        learner_level=saved_term.learner_level,
+    )
+
+    quiz = None
+    if quiz_dict:
+        try:
+            options = [
+                QuizOption(key=o["key"], text=o["text"])
+                for o in quiz_dict.get("options", [])
+                if isinstance(o, dict) and "key" in o and "text" in o
+            ]
+            if options and any(opt.key == quiz_dict.get("correct_key") for opt in options):
+                quiz = QuizItem(
+                    question=quiz_dict["question"],
+                    options=options,
+                    correct_key=quiz_dict["correct_key"],
+                    explanation=quiz_dict.get("explanation", ""),
+                )
+        except Exception:
+            quiz = None
+
+    updated = session_manager.set_term_quiz(session_id, term_id, quiz.model_dump() if quiz else None)
+    return updated or saved_term
+
+
 @app.get("/api/sessions/{session_id}/saved-terms", response_model=SavedTermListResponse, tags=["Vocabulary"])
 def list_saved_terms(session_id: str):
     session = session_manager.get_session(session_id)

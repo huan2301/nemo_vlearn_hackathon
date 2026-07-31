@@ -79,6 +79,38 @@ SCHEMA JSON BẮT BUỘC:
 }
 """
 
+# ==================== Sinh bổ sung 1 câu quiz cho 1 thẻ đã lưu ====================
+# Dùng cho "Ôn tập tổng hợp": những thẻ được lưu TRƯỚC khi tính năng lưu-quiz-theo-thẻ
+# tồn tại sẽ chưa có sẵn quiz — endpoint POST /saved-terms/{term_id}/quiz gọi tới đây
+# để sinh bổ sung, dựa trên đúng nội dung đã lưu (không cần lại surrounding_context gốc).
+QUIZ_ONLY_SYSTEM_PROMPT = """Bạn là AI Glossary Tutor trên nền tảng VLearn. Người học đã lưu 1 thuật ngữ AI
+vào sổ tay ôn tập, kèm nghĩa/giải thích/ví dụ đã có sẵn bên dưới. Nhiệm vụ của bạn: soạn ĐÚNG 1 câu hỏi
+trắc nghiệm (multiple choice) để kiểm tra người học còn nhớ/hiểu đúng thuật ngữ này không.
+
+ĐẦU VÀO: term, meaning_in_context, plain_explanation, example, learner_level.
+
+QUY TẮC:
+- Câu hỏi phải bám sát đúng thông tin đã cho ở trên, KHÔNG hỏi kiến thức nằm ngoài phạm vi đó.
+- Đúng 4 đáp án, key lần lượt "A","B","C","D", chỉ 1 đáp án đúng, 3 đáp án còn lại là ngộ nhận hợp lý
+  (không vô lý/gây cười).
+- `correct_key` khớp đúng 1 trong 4 key ở trên.
+- `explanation`: 1 câu ngắn giải thích vì sao đáp án đó đúng.
+- BẮT BUỘC trả về DUY NHẤT 1 JSON object hợp lệ, KHÔNG markdown, KHÔNG lời dẫn.
+
+SCHEMA JSON BẮT BUỘC:
+{
+  "question": "string",
+  "options": [
+    { "key": "A", "text": "..." },
+    { "key": "B", "text": "..." },
+    { "key": "C", "text": "..." },
+    { "key": "D", "text": "..." }
+  ],
+  "correct_key": "A | B | C | D",
+  "explanation": "string"
+}
+"""
+
 CHAT_TUTOR_SYSTEM_PROMPT = """Bạn là Trợ lý Học tập AI Tutor thông minh của VLearn.
 Nhiệm vụ của bạn là hỗ trợ học viên giải đáp các thắc mắc về AI, làm rõ thêm các thuật ngữ hoặc tài liệu học tiếng Anh.
 

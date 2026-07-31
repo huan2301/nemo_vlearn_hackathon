@@ -388,7 +388,8 @@ body{
 
 /* ===================== notebook ===================== */
 .notebook-card{margin-top:22px;}
-.notebook-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+.notebook-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; gap:10px; flex-wrap:wrap;}
+.notebook-head-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .count-pill{
   background:var(--navy); color:#fff; font-size:.75rem; font-weight:800; border-radius:99px; padding:3px 12px;
 }

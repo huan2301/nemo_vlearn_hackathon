@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from schemas import SessionResponse, SavedTerm, LearningProgress
+from schemas import SessionResponse, SavedTerm, LearningProgress, QuizItem
 
 class Session:
     def __init__(self, session_id: str, level: str = "coban"):
@@ -136,6 +136,23 @@ class SessionManager:
         if not session:
             return []
         return list(session.saved_terms.values())
+
+    def set_term_quiz(self, session_id: str, term_id: str, quiz: Optional[Dict[str, Any]]) -> Optional[SavedTerm]:
+        """Gắn (hoặc thay thế) quiz cho 1 flashcard đã lưu — dùng khi sinh bổ sung quiz
+        cho những thẻ cũ lưu từ trước khi có tính năng lưu-quiz-theo-thẻ (xem endpoint
+        POST /api/sessions/{session_id}/saved-terms/{term_id}/quiz trong app.py)."""
+        session = self.get_session(session_id)
+        if not session or term_id not in session.saved_terms:
+            return None
+        saved_term = session.saved_terms[term_id]
+        # QUAN TRỌNG: gán trực tiếp `saved_term.quiz = quiz` (dict) sẽ KHÔNG được pydantic
+        # tự validate/convert thành QuizItem — attribute assignment không kích hoạt
+        # validation như lúc dùng constructor SavedTerm(...). Phải tự construct QuizItem
+        # ở đây, nếu không code gọi sau (VD: `saved_term.quiz.question`) sẽ lỗi vì
+        # saved_term.quiz vẫn là dict thô, không phải QuizItem.
+        saved_term.quiz = QuizItem(**quiz) if quiz else None
+        session.updated_at = datetime.now().isoformat()
+        return saved_term
 
     def delete_saved_term(self, session_id: str, term_id: str) -> bool:
         session = self.get_session(session_id)

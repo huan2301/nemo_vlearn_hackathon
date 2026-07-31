@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindSelectionLookup();
   bindResultActions();
   bindStyleButtons();
+  bindNotebookActions();
 
   // Show whatever was cached locally right away — don't make the learner
   // wait on the network (or stare at an empty notebook) before seeing it.
@@ -695,6 +696,22 @@ function bindResultActions() {
 }
 
 // ---------------------------------------------------------------------
+// notebook header actions ("Ôn tập tổng hợp")
+// ---------------------------------------------------------------------
+function bindNotebookActions() {
+  const btn = $("btnStartReviewAll");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const section = $("reviewAllSection");
+    if (section && !section.hidden) {
+      section.hidden = true; // bấm lần nữa để ẩn đi
+      return;
+    }
+    startReviewAll();
+  });
+}
+
+// ---------------------------------------------------------------------
 // notebook (saved terms) — backed by real API
 // ---------------------------------------------------------------------
 async function refreshSavedTerms() {
@@ -770,6 +787,62 @@ async function refreshDueFlashcards() {
   } catch (e) { /* silent — due section just stays empty */ }
 }
 
+// Xây 1 dòng ôn tập (thẻ + quiz nếu có + 4 nút tự đánh giá) — dùng chung cho cả
+// "Cần ôn hôm nay" (renderDueList) và "Ôn tập tổng hợp" (renderReviewAllList),
+// để 2 khu vực này luôn nhất quán về hành vi (trả lời quiz vẫn chấm điểm +
+// cập nhật lịch SM-2 như cũ, dù đang xem ở khu vực nào).
+function buildReviewItemRow(t) {
+  const row = document.createElement("div");
+  row.className = "due-item";
+  const quiz = t.quiz || null;
+  row.innerHTML = `
+    <div class="due-term-head">
+      <span class="due-term">${escapeHtml(t.term)}</span>
+      ${quiz ? '<button type="button" class="due-quiz-toggle">📝 Làm quiz</button>' : ""}
+    </div>
+    ${quiz ? `
+    <div class="due-quiz" hidden>
+      <p></p>
+      <div class="quiz-options"></div>
+      <div class="quiz-feedback" hidden></div>
+    </div>` : ""}
+    <div class="due-actions-row">
+      <span class="due-actions-lbl">${quiz ? "Hoặc tự đánh giá mức độ nhớ:" : "Tự đánh giá mức độ nhớ:"}</span>
+      <div class="due-actions">
+        <button type="button" data-quality="again">😵 Quên</button>
+        <button type="button" data-quality="hard">😕 Khó</button>
+        <button type="button" data-quality="good">🙂 Nhớ được</button>
+        <button type="button" data-quality="easy">😄 Dễ</button>
+      </div>
+    </div>
+  `;
+
+  if (quiz) {
+    const toggleBtn = row.querySelector(".due-quiz-toggle");
+    const quizWrap = row.querySelector(".due-quiz");
+    const qEl = quizWrap.querySelector("p");
+    const optsWrap = quizWrap.querySelector(".quiz-options");
+    qEl.textContent = quiz.question;
+    quiz.options.forEach((opt) => {
+      const b = document.createElement("button");
+      b.className = "quiz-opt";
+      b.dataset.key = opt.key;
+      b.innerHTML = `<span class="k">${escapeHtml(opt.key)}.</span>${escapeHtml(opt.text)}`;
+      b.addEventListener("click", () => submitDueQuizAnswer(t, quiz, opt.key, optsWrap, row));
+      optsWrap.appendChild(b);
+    });
+    toggleBtn.addEventListener("click", () => {
+      quizWrap.hidden = !quizWrap.hidden;
+      toggleBtn.textContent = quizWrap.hidden ? "📝 Làm quiz" : "▲ Ẩn quiz";
+    });
+  }
+
+  row.querySelectorAll(".due-actions button[data-quality]").forEach((b) => {
+    b.addEventListener("click", () => reviewFlashcard(t.term_id, b.dataset.quality, row));
+  });
+  return row;
+}
+
 function renderDueList(terms) {
   const list = $("dueList");
   const empty = $("dueEmpty");
@@ -784,57 +857,76 @@ function renderDueList(terms) {
   }
   empty.hidden = true;
   list.innerHTML = "";
-  terms.forEach((t) => {
-    const row = document.createElement("div");
-    row.className = "due-item";
-    const quiz = t.quiz || null;
-    row.innerHTML = `
-      <div class="due-term-head">
-        <span class="due-term">${escapeHtml(t.term)}</span>
-        ${quiz ? '<button type="button" class="due-quiz-toggle">📝 Làm quiz</button>' : ""}
-      </div>
-      ${quiz ? `
-      <div class="due-quiz" hidden>
-        <p></p>
-        <div class="quiz-options"></div>
-        <div class="quiz-feedback" hidden></div>
-      </div>` : ""}
-      <div class="due-actions-row">
-        <span class="due-actions-lbl">${quiz ? "Hoặc tự đánh giá mức độ nhớ:" : "Tự đánh giá mức độ nhớ:"}</span>
-        <div class="due-actions">
-          <button type="button" data-quality="again">😵 Quên</button>
-          <button type="button" data-quality="hard">😕 Khó</button>
-          <button type="button" data-quality="good">🙂 Nhớ được</button>
-          <button type="button" data-quality="easy">😄 Dễ</button>
-        </div>
-      </div>
-    `;
+  terms.forEach((t) => list.appendChild(buildReviewItemRow(t)));
+}
 
-    if (quiz) {
-      const toggleBtn = row.querySelector(".due-quiz-toggle");
-      const quizWrap = row.querySelector(".due-quiz");
-      const qEl = quizWrap.querySelector("p");
-      const optsWrap = quizWrap.querySelector(".quiz-options");
-      qEl.textContent = quiz.question;
-      quiz.options.forEach((opt) => {
-        const b = document.createElement("button");
-        b.className = "quiz-opt";
-        b.dataset.key = opt.key;
-        b.innerHTML = `<span class="k">${escapeHtml(opt.key)}.</span>${escapeHtml(opt.text)}`;
-        b.addEventListener("click", () => submitDueQuizAnswer(t, quiz, opt.key, optsWrap, row));
-        optsWrap.appendChild(b);
+// ---------------------------------------------------------------------
+// "Ôn tập tổng hợp" — làm quiz cho TẤT CẢ từ đã lưu (không chỉ những thẻ
+// đang tới hạn), theo yêu cầu của người học muốn ôn cả danh sách ngay lúc
+// đó. Những thẻ cũ lưu từ trước khi có tính năng lưu-quiz sẽ chưa có sẵn
+// quiz — hàm này gọi API sinh bổ sung (chỉ gọi LLM 1 lần cho mỗi thẻ còn
+// thiếu, thẻ đã có quiz thì dùng lại luôn, không gọi lại LLM).
+// ---------------------------------------------------------------------
+function renderReviewAllList(terms) {
+  const list = $("reviewAllList");
+  const count = $("reviewAllCount");
+  if (!list || !count) return;
+  count.textContent = terms.length;
+  list.innerHTML = "";
+  terms.forEach((t) => list.appendChild(buildReviewItemRow(t)));
+}
+
+async function startReviewAll() {
+  const section = $("reviewAllSection");
+  const status = $("reviewAllStatus");
+  const btn = $("btnStartReviewAll");
+  if (!section || !sessionId) return;
+
+  section.hidden = false;
+  btn.disabled = true;
+  const originalBtnText = btn.textContent;
+  btn.textContent = "⏳ Đang chuẩn bị câu hỏi…";
+
+  const missing = savedTerms.filter((t) => !t.quiz);
+  let done = 0;
+  let failed = 0;
+  status.hidden = false;
+  status.textContent = missing.length
+    ? `Đang tạo câu hỏi cho ${missing.length} từ chưa có quiz (0/${missing.length})…`
+    : "Tất cả từ đã có sẵn quiz — đang hiển thị…";
+
+  for (const t of missing) {
+    try {
+      let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}/quiz`, {
+        method: "POST",
       });
-      toggleBtn.addEventListener("click", () => {
-        quizWrap.hidden = !quizWrap.hidden;
-        toggleBtn.textContent = quizWrap.hidden ? "📝 Làm quiz" : "▲ Ẩn quiz";
-      });
+      if (!res.ok && (await refreshSessionIfStale(res))) {
+        res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}/quiz`, {
+          method: "POST",
+        });
+      }
+      if (res.ok) {
+        const updated = await res.json();
+        const idx = savedTerms.findIndex((s) => s.term_id === t.term_id);
+        if (idx !== -1) savedTerms[idx] = updated;
+      } else {
+        failed += 1;
+      }
+    } catch (e) {
+      failed += 1;
     }
+    done += 1;
+    status.textContent = `Đang tạo câu hỏi cho ${missing.length} từ chưa có quiz (${done}/${missing.length})…`;
+  }
 
-    row.querySelectorAll(".due-actions button[data-quality]").forEach((b) => {
-      b.addEventListener("click", () => reviewFlashcard(t.term_id, b.dataset.quality, row));
-    });
-    list.appendChild(row);
-  });
+  persistSavedTermsCache(savedTerms);
+  status.textContent = failed
+    ? `Đã sẵn sàng — ${missing.length - failed}/${missing.length} câu hỏi mới tạo thành công (${failed} lỗi, thử lại nếu cần). Trả lời từng câu bên dưới.`
+    : "Đã sẵn sàng — trả lời từng câu bên dưới (thẻ chưa có quiz vẫn có thể tự đánh giá).";
+  renderReviewAllList(savedTerms);
+
+  btn.disabled = false;
+  btn.textContent = originalBtnText;
 }
 
 // Nhắc ôn tập ngay trên thanh nav (badge số thẻ tới hạn), để người học vẫn
