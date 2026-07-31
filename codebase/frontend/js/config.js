@@ -8,7 +8,7 @@
 // URL (e.g. "https://vlearn-ai-tutor-backend.onrender.com") and redeploy
 // the frontend (or just push — Cloudflare Pages/Netlify auto-redeploy).
 // =====================================================================
-const PROD_API_BASE = "https://REPLACE_WITH_YOUR_BACKEND_URL.onrender.com";
+const PROD_API_BASE = "https://vlearn-ai-tutor-backend.onrender.com";
 
 window.APP_CONFIG = {
   API_BASE:
