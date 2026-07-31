@@ -106,9 +106,38 @@ class LLMClient:
 
         return json.loads(text)
 
+    @staticmethod
+    def _coerce_str(value: Any) -> Optional[str]:
+        """LLM đôi khi trả sai kiểu cho 1 field lẽ ra phải là string — VD: `expanded_form`
+        thành dict `{"AI": "Artificial Intelligence", "LLM": "Large Language Model"}` khi
+        selected_text chứa nhiều từ viết tắt cùng lúc, thay vì đúng 1 string như schema yêu
+        cầu. Không ép luôn về string thì pydantic ném ValidationError -> lỗi 500 cả request.
+        Thay vì vậy, ép về 1 string dễ đọc; None vẫn giữ nguyên None (field optional)."""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        if isinstance(value, dict):
+            return "; ".join(f"{k}: {v}" for k, v in value.items())
+        if isinstance(value, list):
+            return "; ".join(str(v) for v in value)
+        return str(value)
+
     def _normalize_explain_payload(self, parsed: Dict[str, Any]) -> Dict[str, Any]:
         """Đảm bảo các field mới (is_difficult, comparison_concept, quiz) luôn có mặt
-        và hợp lệ dù model trả về thiếu field hoặc field sai định dạng."""
+        và hợp lệ dù model trả về thiếu field hoặc field sai định dạng (thiếu field,
+        đúng field nhưng sai KIỂU dữ liệu, ...) — không để 1 field lệch format làm
+        sập cả response."""
+        # --- 1) Ép mọi field lẽ ra là string về đúng string, kể cả khi model trả nhầm
+        #     kiểu (dict/list/number/bool...) — tránh ValidationError khi build ExplainResponse.
+        for field in (
+            "term", "confidence", "expanded_form", "meaning_in_context",
+            "plain_explanation", "styled_explanation", "difficulty_reason",
+            "example", "evidence_span", "clarifying_question",
+        ):
+            if field in parsed:
+                parsed[field] = self._coerce_str(parsed[field])
+
         parsed.setdefault("is_difficult", False)
         parsed.setdefault("difficulty_reason", None)
         parsed.setdefault("comparison_concept", None)
@@ -116,7 +145,33 @@ class LLMClient:
         if not parsed.get("styled_explanation"):
             parsed["styled_explanation"] = parsed.get("plain_explanation", "")
 
-        confidence = parsed.get("confidence", "high")
+        # --- 2) Ép các field string lồng bên trong comparison_concept / related_concepts / quiz.
+        cc = parsed.get("comparison_concept")
+        if isinstance(cc, dict):
+            cc["concept"] = self._coerce_str(cc.get("concept")) or ""
+            cc["comparison"] = self._coerce_str(cc.get("comparison")) or ""
+
+        related = parsed.get("related_concepts")
+        if isinstance(related, list):
+            for rc in related:
+                if isinstance(rc, dict):
+                    if "concept" in rc:
+                        rc["concept"] = self._coerce_str(rc.get("concept")) or ""
+                    if "relationship" in rc:
+                        rc["relationship"] = self._coerce_str(rc.get("relationship")) or ""
+
+        quiz = parsed.get("quiz")
+        if isinstance(quiz, dict):
+            quiz["question"] = self._coerce_str(quiz.get("question")) or ""
+            quiz["correct_key"] = self._coerce_str(quiz.get("correct_key")) or ""
+            quiz["explanation"] = self._coerce_str(quiz.get("explanation")) or ""
+            if isinstance(quiz.get("options"), list):
+                for opt in quiz["options"]:
+                    if isinstance(opt, dict):
+                        opt["key"] = self._coerce_str(opt.get("key")) or ""
+                        opt["text"] = self._coerce_str(opt.get("text")) or ""
+
+        confidence = parsed.get("confidence") or "high"
         quiz = parsed.get("quiz")
 
         # Không đủ ngữ cảnh -> không ép người học làm quiz / so sánh
