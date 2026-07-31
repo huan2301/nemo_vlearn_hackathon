@@ -787,27 +787,28 @@ async function refreshDueFlashcards() {
   } catch (e) { /* silent — due section just stays empty */ }
 }
 
-// Xây 1 dòng ôn tập (thẻ + quiz nếu có + 4 nút tự đánh giá) — dùng chung cho cả
-// "Cần ôn hôm nay" (renderDueList) và "Ôn tập tổng hợp" (renderReviewAllList),
-// để 2 khu vực này luôn nhất quán về hành vi (trả lời quiz vẫn chấm điểm +
-// cập nhật lịch SM-2 như cũ, dù đang xem ở khu vực nào).
+// Xây 1 dòng ôn tập (thẻ + quiz + 4 nút tự đánh giá) — dùng chung cho cả
+// "Cần ôn hôm nay" (renderDueList) và "Ôn tập tổng hợp" (renderReviewAllList).
+// Nút "Làm quiz" LUÔN hiện cho MỌI thẻ, kể cả thẻ chưa có sẵn quiz (VD: lưu
+// từ trước khi có tính năng lưu-quiz, hoặc lần giải thích đó AI trả về
+// confidence="insufficient" nên không sinh quiz) — bấm vào sẽ tự gọi API
+// sinh bổ sung ngay lúc đó thay vì im lặng ẩn nút đi, để người học không
+// bao giờ thấy tình trạng "từ này không có nút Làm quiz" như trước nữa.
 function buildReviewItemRow(t) {
   const row = document.createElement("div");
   row.className = "due-item";
-  const quiz = t.quiz || null;
   row.innerHTML = `
     <div class="due-term-head">
       <span class="due-term">${escapeHtml(t.term)}</span>
-      ${quiz ? '<button type="button" class="due-quiz-toggle">📝 Làm quiz</button>' : ""}
+      <button type="button" class="due-quiz-toggle">📝 Làm quiz</button>
     </div>
-    ${quiz ? `
     <div class="due-quiz" hidden>
       <p></p>
       <div class="quiz-options"></div>
       <div class="quiz-feedback" hidden></div>
-    </div>` : ""}
+    </div>
     <div class="due-actions-row">
-      <span class="due-actions-lbl">${quiz ? "Hoặc tự đánh giá mức độ nhớ:" : "Tự đánh giá mức độ nhớ:"}</span>
+      <span class="due-actions-lbl">Hoặc tự đánh giá mức độ nhớ:</span>
       <div class="due-actions">
         <button type="button" data-quality="again">😵 Quên</button>
         <button type="button" data-quality="hard">😕 Khó</button>
@@ -817,12 +818,15 @@ function buildReviewItemRow(t) {
     </div>
   `;
 
-  if (quiz) {
-    const toggleBtn = row.querySelector(".due-quiz-toggle");
-    const quizWrap = row.querySelector(".due-quiz");
-    const qEl = quizWrap.querySelector("p");
-    const optsWrap = quizWrap.querySelector(".quiz-options");
+  const toggleBtn = row.querySelector(".due-quiz-toggle");
+  const quizWrap = row.querySelector(".due-quiz");
+  const qEl = quizWrap.querySelector("p");
+  const optsWrap = quizWrap.querySelector(".quiz-options");
+  let populated = false;
+
+  function renderQuizOptions(quiz) {
     qEl.textContent = quiz.question;
+    optsWrap.innerHTML = "";
     quiz.options.forEach((opt) => {
       const b = document.createElement("button");
       b.className = "quiz-opt";
@@ -831,11 +835,66 @@ function buildReviewItemRow(t) {
       b.addEventListener("click", () => submitDueQuizAnswer(t, quiz, opt.key, optsWrap, row));
       optsWrap.appendChild(b);
     });
-    toggleBtn.addEventListener("click", () => {
-      quizWrap.hidden = !quizWrap.hidden;
-      toggleBtn.textContent = quizWrap.hidden ? "📝 Làm quiz" : "▲ Ẩn quiz";
-    });
+    populated = true;
   }
+
+  toggleBtn.addEventListener("click", async () => {
+    if (!quizWrap.hidden) {
+      quizWrap.hidden = true;
+      toggleBtn.textContent = "📝 Làm quiz";
+      return;
+    }
+    if (populated) {
+      quizWrap.hidden = false;
+      toggleBtn.textContent = "▲ Ẩn quiz";
+      return;
+    }
+    if (t.quiz) {
+      renderQuizOptions(t.quiz);
+      quizWrap.hidden = false;
+      toggleBtn.textContent = "▲ Ẩn quiz";
+      return;
+    }
+
+    // Thẻ này chưa có sẵn quiz -> gọi API sinh bổ sung ngay lúc bấm (idempotent:
+    // nếu thẻ đã có quiz rồi thì backend trả về luôn, không tốn thêm lượt gọi LLM).
+    toggleBtn.disabled = true;
+    toggleBtn.textContent = "⏳ Đang tạo câu hỏi…";
+    try {
+      let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}/quiz`, {
+        method: "POST",
+      });
+      if (!res.ok && (await refreshSessionIfStale(res))) {
+        res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}/quiz`, {
+          method: "POST",
+        });
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated = await res.json();
+      t.quiz = updated.quiz;
+      const idx = savedTerms.findIndex((s) => s.term_id === t.term_id);
+      if (idx !== -1) savedTerms[idx] = updated;
+      persistSavedTermsCache(savedTerms);
+
+      if (t.quiz) {
+        renderQuizOptions(t.quiz);
+        quizWrap.hidden = false;
+        toggleBtn.textContent = "▲ Ẩn quiz";
+      } else {
+        qEl.textContent = "Không tạo được câu hỏi phù hợp cho từ này — bạn có thể tự đánh giá mức độ nhớ ở dưới thay thế.";
+        optsWrap.innerHTML = "";
+        quizWrap.hidden = false;
+        toggleBtn.textContent = "📝 Làm quiz";
+      }
+    } catch (e) {
+      qEl.textContent = "Không tạo được câu hỏi — kiểm tra backend đang chạy rồi bấm lại.";
+      optsWrap.innerHTML = "";
+      quizWrap.hidden = false;
+      toggleBtn.textContent = "📝 Làm quiz";
+    } finally {
+      toggleBtn.disabled = false;
+    }
+  });
 
   row.querySelectorAll(".due-actions button[data-quality]").forEach((b) => {
     b.addEventListener("click", () => reviewFlashcard(t.term_id, b.dataset.quality, row));
@@ -861,11 +920,10 @@ function renderDueList(terms) {
 }
 
 // ---------------------------------------------------------------------
-// "Ôn tập tổng hợp" — làm quiz cho TẤT CẢ từ đã lưu (không chỉ những thẻ
-// đang tới hạn), theo yêu cầu của người học muốn ôn cả danh sách ngay lúc
-// đó. Những thẻ cũ lưu từ trước khi có tính năng lưu-quiz sẽ chưa có sẵn
-// quiz — hàm này gọi API sinh bổ sung (chỉ gọi LLM 1 lần cho mỗi thẻ còn
-// thiếu, thẻ đã có quiz thì dùng lại luôn, không gọi lại LLM).
+// "Ôn tập tổng hợp" — hiện TẤT CẢ từ đã lưu (không chỉ những thẻ đang tới
+// hạn), để người học ôn cả danh sách ngay lúc đó thay vì đợi lịch spaced
+// repetition. Mỗi thẻ tự sinh quiz ngay khi bấm "Làm quiz" (xem
+// buildReviewItemRow) nên không cần chờ tạo hàng loạt trước.
 // ---------------------------------------------------------------------
 function renderReviewAllList(terms) {
   const list = $("reviewAllList");
@@ -876,57 +934,14 @@ function renderReviewAllList(terms) {
   terms.forEach((t) => list.appendChild(buildReviewItemRow(t)));
 }
 
-async function startReviewAll() {
+function startReviewAll() {
   const section = $("reviewAllSection");
   const status = $("reviewAllStatus");
-  const btn = $("btnStartReviewAll");
-  if (!section || !sessionId) return;
-
+  if (!section) return;
   section.hidden = false;
-  btn.disabled = true;
-  const originalBtnText = btn.textContent;
-  btn.textContent = "⏳ Đang chuẩn bị câu hỏi…";
-
-  const missing = savedTerms.filter((t) => !t.quiz);
-  let done = 0;
-  let failed = 0;
   status.hidden = false;
-  status.textContent = missing.length
-    ? `Đang tạo câu hỏi cho ${missing.length} từ chưa có quiz (0/${missing.length})…`
-    : "Tất cả từ đã có sẵn quiz — đang hiển thị…";
-
-  for (const t of missing) {
-    try {
-      let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}/quiz`, {
-        method: "POST",
-      });
-      if (!res.ok && (await refreshSessionIfStale(res))) {
-        res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}/quiz`, {
-          method: "POST",
-        });
-      }
-      if (res.ok) {
-        const updated = await res.json();
-        const idx = savedTerms.findIndex((s) => s.term_id === t.term_id);
-        if (idx !== -1) savedTerms[idx] = updated;
-      } else {
-        failed += 1;
-      }
-    } catch (e) {
-      failed += 1;
-    }
-    done += 1;
-    status.textContent = `Đang tạo câu hỏi cho ${missing.length} từ chưa có quiz (${done}/${missing.length})…`;
-  }
-
-  persistSavedTermsCache(savedTerms);
-  status.textContent = failed
-    ? `Đã sẵn sàng — ${missing.length - failed}/${missing.length} câu hỏi mới tạo thành công (${failed} lỗi, thử lại nếu cần). Trả lời từng câu bên dưới.`
-    : "Đã sẵn sàng — trả lời từng câu bên dưới (thẻ chưa có quiz vẫn có thể tự đánh giá).";
+  status.textContent = "Bấm \"📝 Làm quiz\" ở từng thẻ bên dưới — thẻ nào chưa có quiz sẽ tự tạo ngay lúc bấm.";
   renderReviewAllList(savedTerms);
-
-  btn.disabled = false;
-  btn.textContent = originalBtnText;
 }
 
 // Nhắc ôn tập ngay trên thanh nav (badge số thẻ tới hạn), để người học vẫn
