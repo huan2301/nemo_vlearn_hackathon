@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=7">
+<link rel="stylesheet" href="css/styles.css?v=8">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
 
     <nav class="topnav">
       <a href="#reader" class="nav-link active" data-tab="reader">Đọc tài liệu</a>
-      <a href="#notebook" class="nav-link" data-tab="notebook">Sổ tay ôn tập</a>
+      <a href="#notebook" class="nav-link" data-tab="notebook">Sổ tay ôn tập<span class="nav-due-badge" id="navDueBadge" hidden>0</span></a>
       <span class="nav-link disabled">Hỏi Tutor <em class="badge-soon">SẮP RA MẮT</em></span>
     </nav>
 
@@ -149,17 +149,11 @@
             <div class="chips" id="rChips"></div>
           </div>
 
-          <div class="quiz-box" id="quizBox" hidden>
-            <span class="lbl">📝 Kiểm tra nhanh</span>
-            <p id="quizQuestion"></p>
-            <div class="quiz-options" id="quizOptions"></div>
-            <div class="quiz-feedback" id="quizFeedback" hidden></div>
-          </div>
-
           <div class="result-actions">
             <button class="btn btn-primary" id="btnSave">💾 Lưu để ôn tập</button>
             <button class="btn btn-ghost" id="btnReset">↺ Chọn từ khác</button>
           </div>
+          <p class="quiz-later-hint" id="quizLaterHint" hidden>📝 Quiz kiểm tra hiểu bài của từ này đã được lưu — bạn sẽ làm nó sau, ở mục "Cần ôn hôm nay" trong Sổ tay ôn tập.</p>
           <div class="model-tag" id="rModelTag"></div>
         </div>
 
@@ -189,6 +183,7 @@
         <span class="lbl">⏰ Cần ôn hôm nay (spaced repetition)</span>
         <span class="count-pill due-pill" id="dueCount">0</span>
       </div>
+      <p class="due-hint">Làm quiz (nếu có) hoặc tự đánh giá mức độ nhớ để hệ thống lên lịch nhắc ôn lại tiếp theo.</p>
       <p class="nb-empty" id="dueEmpty">Chưa có thẻ nào tới hạn ôn lại.</p>
       <div class="due-list" id="dueList"></div>
     </div>
@@ -201,6 +196,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="js/config.js?v=1"></script>
-<script src="js/app.js?v=8" defer></script>
+<script src="js/app.js?v=9" defer></script>
 </body>
 </html>

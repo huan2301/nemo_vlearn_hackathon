@@ -136,6 +136,11 @@ class SavedTerm(BaseModel):
     is_difficult: bool = False
     created_at: str
 
+    # --- Quiz đã sinh sẵn lúc giải thích (nếu có) — lưu lại cùng flashcard để có thể
+    # ôn lại đúng câu hỏi này sau, trong luồng "Cần ôn hôm nay" (spaced repetition),
+    # thay vì chỉ hỏi quiz ngay lúc vừa xem giải thích xong. ---
+    quiz: Optional[QuizItem] = Field(None, description="Quiz 1 câu đi kèm thuật ngữ này, dùng để ôn lại khi thẻ tới hạn")
+
     # --- Flashcard + nhắc ôn lại (spaced repetition, thuật toán SM-2 rút gọn) ---
     repetitions: int = Field(0, description="Số lần đã ôn thành công liên tiếp")
     ease_factor: float = Field(2.5, description="Hệ số dễ nhớ, càng cao thì khoảng ôn tăng càng nhanh")
@@ -153,6 +158,7 @@ class SavedTermCreate(BaseModel):
     evidence_span: Optional[str] = None
     learner_level: Optional[str] = "coban"
     is_difficult: Optional[bool] = False
+    quiz: Optional[QuizItem] = Field(None, description="Quiz 1 câu đi kèm thuật ngữ này (nếu có), lưu lại để ôn tập sau")
 
 
 class SavedTermListResponse(BaseModel):

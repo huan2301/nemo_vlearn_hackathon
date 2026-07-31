@@ -396,7 +396,12 @@ def submit_quiz(req: QuizSubmitRequest):
     term_id = req.term_id
     # Tự sinh flashcard nếu chưa có sẵn (term_id) nhưng client gửi kèm đủ dữ liệu thuật ngữ
     if not term_id and req.term_data:
-        new_card = session_manager.save_term(req.session_id, req.term_data.model_dump())
+        term_dict = req.term_data.model_dump()
+        # Luôn đính kèm chính câu quiz vừa làm vào flashcard mới tạo, kể cả khi
+        # client không tự gửi field "quiz" trong term_data — để thẻ này có sẵn
+        # quiz cho lần ôn tập sau (mục "Cần ôn hôm nay").
+        term_dict["quiz"] = req.quiz.model_dump()
+        new_card = session_manager.save_term(req.session_id, term_dict)
         if new_card:
             term_id = new_card.term_id
 

@@ -118,6 +118,10 @@ class SessionManager:
             evidence_span=term_data.get("evidence_span"),
             learner_level=term_data.get("learner_level", session.level),
             is_difficult=term_data.get("is_difficult", False),
+            # Nếu term_data có kèm quiz (dict do LLM/explain sinh ra, hoặc đã được
+            # gắn thêm ở app.py khi tự tạo flashcard từ /api/quiz/submit) thì lưu lại
+            # luôn cùng flashcard, để hiển thị lại đúng câu hỏi này khi ôn tập sau.
+            quiz=term_data.get("quiz"),
             created_at=now_str,
             # Flashcard mới -> coi như "đến hạn ôn ngay" cho tới lần ôn đầu tiên.
             next_review_at=now_str,

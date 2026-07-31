@@ -86,6 +86,12 @@ body{
 .nav-link:hover{color:var(--ink);}
 .nav-link.active{color:var(--red); border-bottom-color:var(--red);}
 .nav-link.disabled{color:var(--muted-2); cursor:default; display:flex; align-items:center; gap:6px; white-space:nowrap;}
+.nav-due-badge{
+  display:inline-flex; align-items:center; justify-content:center; min-width:16px; height:16px;
+  padding:0 5px; margin-left:5px; background:var(--amber); color:#fff; font-size:.65rem; font-weight:800;
+  border-radius:99px; line-height:16px; animation:pulseBadge 1.6s ease-in-out infinite;
+}
+@keyframes pulseBadge{0%,100%{opacity:1;} 50%{opacity:.55;}}
 .badge-soon{
   font-style:normal; font-size:.62rem; font-weight:800; letter-spacing:.4px;
   background:var(--navy-soft); color:var(--ink-soft); border-radius:99px; padding:2px 8px;
@@ -367,6 +373,10 @@ body{
 
 .result-actions{display:flex; gap:10px; margin-top:18px;}
 .result-actions .btn{flex:1;}
+.quiz-later-hint{
+  margin:10px 0 0; font-size:.76rem; color:var(--ink-soft); background:var(--navy-soft);
+  border-radius:var(--radius-sm); padding:8px 12px; line-height:1.5;
+}
 .model-tag{margin-top:10px; font-size:.68rem; color:var(--muted-2); text-align:right;}
 
 .error-state{
@@ -390,13 +400,24 @@ body{
 }
 .due-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;}
 .due-head .lbl{color:var(--amber); margin:0;}
+.due-hint{margin:0 0 4px; font-size:.76rem; color:var(--ink-soft);}
 .due-list{display:flex; flex-direction:column; gap:8px; margin-top:8px;}
 .due-item{
-  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
-  background:var(--card); border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:9px 12px;
+  display:flex; flex-direction:column; align-items:stretch; gap:9px;
+  background:var(--card); border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:10px 12px;
 }
+.due-term-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
 .due-term{font-weight:800; color:var(--navy); font-size:.88rem;}
-.due-actions{display:flex; gap:5px;}
+.due-quiz-toggle{
+  border:1.5px solid var(--navy); background:var(--navy-soft); color:var(--navy); font-family:inherit;
+  font-size:.72rem; font-weight:700; padding:5px 11px; border-radius:99px; cursor:pointer; transition:all .15s;
+}
+.due-quiz-toggle:hover{background:var(--navy); color:#fff;}
+.due-quiz{padding-top:8px; border-top:1px dashed var(--border-soft);}
+.due-quiz p{margin:0 0 8px; font-size:.86rem; font-weight:700; color:var(--ink);}
+.due-actions-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.due-actions-lbl{font-size:.68rem; color:var(--muted); font-weight:600;}
+.due-actions{display:flex; gap:5px; flex-wrap:wrap;}
 .due-actions button{
   border:1px solid var(--border); background:var(--card); color:var(--ink-soft); font-family:inherit;
   font-size:.72rem; font-weight:700; padding:5px 9px; border-radius:99px; cursor:pointer; transition:all .15s;

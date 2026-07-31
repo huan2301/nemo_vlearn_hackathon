@@ -75,17 +75,29 @@ function initTheme() {
 }
 
 // ---------------------------------------------------------------------
-// nav tabs (smooth scroll, active state)
+// nav tabs — "Đọc tài liệu" (reader + tutor panel) and "Sổ tay ôn tập"
+// (notebook) are now genuinely separate views: only one is on screen /
+// scrollable at a time, toggled via [hidden] instead of the old
+// scroll-to-anchor behaviour (both used to be visible together on 1 page).
 // ---------------------------------------------------------------------
+function showTab(tab) {
+  const isNotebook = tab === "notebook";
+  document.querySelector(".grid2").hidden = isNotebook;
+  $("notebook").hidden = !isNotebook;
+  document.querySelectorAll(".nav-link[data-tab]").forEach((x) => {
+    x.classList.toggle("active", x.dataset.tab === tab);
+  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function bindNav() {
   document.querySelectorAll(".nav-link[data-tab]").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      document.querySelectorAll(".nav-link[data-tab]").forEach((x) => x.classList.remove("active"));
-      a.classList.add("active");
-      document.getElementById(a.dataset.tab).scrollIntoView({ behavior: "smooth", block: "start" });
+      showTab(a.dataset.tab);
     });
   });
+  showTab("reader"); // mặc định mở "Đọc tài liệu" khi vào trang
 }
 
 // ---------------------------------------------------------------------
@@ -212,6 +224,7 @@ async function resyncSavedTermsToSession() {
           evidence_span: t.evidence_span,
           learner_level: t.learner_level || LEARNER_LEVEL,
           is_difficult: t.is_difficult || false,
+          quiz: t.quiz || null,
         }),
       });
       resynced.push(res.ok ? await res.json() : t);
@@ -591,109 +604,15 @@ function renderResult(data) {
   $("rModelTag").textContent = data.used_model ? "Trả lời bởi: " + data.used_model : "";
   $("statModel").textContent = data.used_model ? data.used_model.split("-")[0] : $("statModel").textContent;
 
-  renderQuiz(data.quiz, data);
+  // Quiz KHÔNG còn hiển thị ngay dưới phần giải thích nữa — nó được lưu lại
+  // cùng flashcard (xem btnSave/submitQuizAnswer cũ đã gộp vào term_data.quiz)
+  // và chỉ xuất hiện sau, khi thuật ngữ này tới hạn ôn ở mục "Cần ôn hôm nay"
+  // trong Sổ tay ôn tập (renderDueList). Ở đây chỉ báo cho người học biết điều đó.
+  currentQuiz = data.quiz || null;
+  $("quizLaterHint").hidden = isInsufficient || !currentQuiz;
 
   $("pipeline").hidden = true;
   $("result").hidden = false;
-}
-
-// ---------------------------------------------------------------------
-// Quiz 1 câu ("Active Recall") — sinh sẵn trong /api/explain, chấm qua /api/quiz/submit
-// ---------------------------------------------------------------------
-function renderQuiz(quiz, explainData) {
-  const box = $("quizBox");
-  const feedback = $("quizFeedback");
-  feedback.hidden = true;
-  feedback.className = "quiz-feedback";
-  feedback.textContent = "";
-
-  if (!quiz) {
-    box.hidden = true;
-    currentQuiz = null;
-    return;
-  }
-
-  currentQuiz = quiz;
-  box.hidden = false;
-  $("quizQuestion").textContent = quiz.question;
-
-  const optsWrap = $("quizOptions");
-  optsWrap.innerHTML = "";
-  quiz.options.forEach((opt) => {
-    const b = document.createElement("button");
-    b.className = "quiz-opt";
-    b.dataset.key = opt.key;
-    b.innerHTML = `<span class="k">${escapeHtml(opt.key)}.</span>${escapeHtml(opt.text)}`;
-    b.addEventListener("click", () => submitQuizAnswer(opt.key, quiz, explainData, optsWrap));
-    optsWrap.appendChild(b);
-  });
-}
-
-async function submitQuizAnswer(selectedKey, quiz, explainData, optsWrap) {
-  optsWrap.querySelectorAll(".quiz-opt").forEach((b) => (b.disabled = true));
-
-  try {
-    const needsNewCard = !explainData.term_id && !explainData.saved;
-    const quizBody = () => JSON.stringify({
-      session_id: sessionId,
-      term: explainData.term,
-      term_id: explainData.term_id || null,
-      term_data: needsNewCard
-        ? {
-            term: explainData.term,
-            expanded_form: explainData.expanded_form,
-            meaning_in_context: explainData.meaning_in_context,
-            plain_explanation: explainData.plain_explanation,
-            example: explainData.example,
-            evidence_span: explainData.evidence_span,
-            learner_level: LEARNER_LEVEL,
-            is_difficult: explainData.is_difficult || false,
-          }
-        : null,
-      quiz,
-      selected_key: selectedKey,
-    });
-    let res = await fetch(`${API_BASE}/api/quiz/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: quizBody(),
-    });
-    if (!res.ok && (await refreshSessionIfStale(res))) {
-      res = await fetch(`${API_BASE}/api/quiz/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: quizBody(),
-      });
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    optsWrap.querySelectorAll(".quiz-opt").forEach((b) => {
-      if (b.dataset.key === data.correct_key) b.classList.add("correct");
-      else if (b.dataset.key === selectedKey) b.classList.add("wrong");
-    });
-
-    const feedback = $("quizFeedback");
-    feedback.hidden = false;
-    feedback.className = "quiz-feedback " + (data.correct ? "correct" : "wrong");
-    feedback.textContent = (data.correct ? "✓ Chính xác! " : "✗ Chưa đúng. ") + (data.explanation || "");
-
-    updateProgressChips(data.progress);
-
-    if (data.flashcard) {
-      explainData.term_id = data.flashcard.term_id;
-      explainData.saved = true;
-      $("btnSave").disabled = true;
-      $("btnSave").textContent = "✓ Đã lưu vào sổ tay";
-      await refreshSavedTerms();
-      await refreshDueFlashcards();
-    }
-  } catch (e) {
-    const feedback = $("quizFeedback");
-    feedback.hidden = false;
-    feedback.className = "quiz-feedback wrong";
-    feedback.textContent = "Không chấm được bài — kiểm tra backend đang chạy.";
-  }
 }
 
 // ---------------------------------------------------------------------
@@ -735,6 +654,8 @@ function bindResultActions() {
         evidence_span: currentPayload.evidence_span,
         learner_level: LEARNER_LEVEL,
         is_difficult: currentPayload.is_difficult || false,
+        // Lưu kèm quiz đã sinh sẵn (nếu có) để dùng lại khi thẻ này tới hạn ôn.
+        quiz: currentPayload.quiz || null,
       });
       let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`, {
         method: "POST",
@@ -854,6 +775,7 @@ function renderDueList(terms) {
   const empty = $("dueEmpty");
   const count = $("dueCount");
   count.textContent = terms.length;
+  updateNavDueBadge(terms.length);
 
   if (!terms.length) {
     empty.hidden = false;
@@ -865,20 +787,126 @@ function renderDueList(terms) {
   terms.forEach((t) => {
     const row = document.createElement("div");
     row.className = "due-item";
+    const quiz = t.quiz || null;
     row.innerHTML = `
-      <span class="due-term">${escapeHtml(t.term)}</span>
-      <div class="due-actions">
-        <button type="button" data-quality="again">😵 Quên</button>
-        <button type="button" data-quality="hard">😕 Khó</button>
-        <button type="button" data-quality="good">🙂 Nhớ được</button>
-        <button type="button" data-quality="easy">😄 Dễ</button>
+      <div class="due-term-head">
+        <span class="due-term">${escapeHtml(t.term)}</span>
+        ${quiz ? '<button type="button" class="due-quiz-toggle">📝 Làm quiz</button>' : ""}
+      </div>
+      ${quiz ? `
+      <div class="due-quiz" hidden>
+        <p></p>
+        <div class="quiz-options"></div>
+        <div class="quiz-feedback" hidden></div>
+      </div>` : ""}
+      <div class="due-actions-row">
+        <span class="due-actions-lbl">${quiz ? "Hoặc tự đánh giá mức độ nhớ:" : "Tự đánh giá mức độ nhớ:"}</span>
+        <div class="due-actions">
+          <button type="button" data-quality="again">😵 Quên</button>
+          <button type="button" data-quality="hard">😕 Khó</button>
+          <button type="button" data-quality="good">🙂 Nhớ được</button>
+          <button type="button" data-quality="easy">😄 Dễ</button>
+        </div>
       </div>
     `;
-    row.querySelectorAll("button").forEach((b) => {
+
+    if (quiz) {
+      const toggleBtn = row.querySelector(".due-quiz-toggle");
+      const quizWrap = row.querySelector(".due-quiz");
+      const qEl = quizWrap.querySelector("p");
+      const optsWrap = quizWrap.querySelector(".quiz-options");
+      qEl.textContent = quiz.question;
+      quiz.options.forEach((opt) => {
+        const b = document.createElement("button");
+        b.className = "quiz-opt";
+        b.dataset.key = opt.key;
+        b.innerHTML = `<span class="k">${escapeHtml(opt.key)}.</span>${escapeHtml(opt.text)}`;
+        b.addEventListener("click", () => submitDueQuizAnswer(t, quiz, opt.key, optsWrap, row));
+        optsWrap.appendChild(b);
+      });
+      toggleBtn.addEventListener("click", () => {
+        quizWrap.hidden = !quizWrap.hidden;
+        toggleBtn.textContent = quizWrap.hidden ? "📝 Làm quiz" : "▲ Ẩn quiz";
+      });
+    }
+
+    row.querySelectorAll(".due-actions button[data-quality]").forEach((b) => {
       b.addEventListener("click", () => reviewFlashcard(t.term_id, b.dataset.quality, row));
     });
     list.appendChild(row);
   });
+}
+
+// Nhắc ôn tập ngay trên thanh nav (badge số thẻ tới hạn), để người học vẫn
+// thấy nhắc nhở kể cả khi đang ở view "Đọc tài liệu", không cần mở Sổ tay.
+function updateNavDueBadge(dueCount) {
+  const badge = $("navDueBadge");
+  if (!badge) return;
+  badge.hidden = !dueCount;
+  badge.textContent = dueCount;
+}
+
+// ---------------------------------------------------------------------
+// Quiz gắn với 1 flashcard tới hạn ôn — trả lời đúng/sai ở đây sẽ chấm điểm
+// qua /api/quiz/submit NHƯ CŨ (cập nhật Learning Profile), và vì term_id đã
+// có sẵn (flashcard tồn tại rồi) nên lịch ôn (SM-2) của thẻ cũng được cập
+// nhật luôn theo kết quả — coi như vừa "ôn tập bài cũ" bằng quiz.
+// ---------------------------------------------------------------------
+async function submitDueQuizAnswer(term, quiz, selectedKey, optsWrap, rowEl) {
+  optsWrap.querySelectorAll(".quiz-opt").forEach((b) => (b.disabled = true));
+  const feedback = rowEl.querySelector(".quiz-feedback");
+
+  try {
+    const body = () => JSON.stringify({
+      session_id: sessionId,
+      term: term.term,
+      term_id: term.term_id,
+      term_data: null,
+      quiz,
+      selected_key: selectedKey,
+    });
+    let res = await fetch(`${API_BASE}/api/quiz/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body(),
+    });
+    if (!res.ok && (await refreshSessionIfStale(res))) {
+      res = await fetch(`${API_BASE}/api/quiz/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body(),
+      });
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    optsWrap.querySelectorAll(".quiz-opt").forEach((b) => {
+      if (b.dataset.key === data.correct_key) b.classList.add("correct");
+      else if (b.dataset.key === selectedKey) b.classList.add("wrong");
+    });
+
+    feedback.hidden = false;
+    feedback.className = "quiz-feedback " + (data.correct ? "correct" : "wrong");
+    feedback.textContent =
+      (data.correct ? "✓ Chính xác! " : "✗ Chưa đúng. ") + (data.explanation || "") +
+      " — lịch ôn tiếp theo đã được cập nhật.";
+
+    updateProgressChips(data.progress);
+    rowEl.querySelectorAll(".due-actions button").forEach((b) => (b.disabled = true));
+
+    // Trả lời quiz đã tự cập nhật lịch ôn (SM-2) của thẻ này rồi — đợi một
+    // chút cho người học đọc feedback rồi mới làm mới danh sách (thẻ sẽ tự
+    // rời khỏi "Cần ôn hôm nay" vì next_review_at đã dời sang tương lai).
+    setTimeout(async () => {
+      await refreshDueFlashcards();
+      await refreshSavedTerms();
+    }, 1400);
+  } catch (e) {
+    feedback.hidden = false;
+    feedback.className = "quiz-feedback wrong";
+    feedback.textContent = "Không chấm được — kiểm tra backend đang chạy.";
+    optsWrap.querySelectorAll(".quiz-opt").forEach((b) => (b.disabled = false));
+  }
 }
 
 async function reviewFlashcard(termId, quality, rowEl) {
