@@ -6,6 +6,13 @@
 const API_BASE = "http://127.0.0.1:8000";
 const LEARNER_LEVEL = "coban"; // fixed to the simplest level, per product decision
 
+// Real slide (page 13/29 of data/vlearn-pack/slides/d1-slide-hackathon.pdf,
+// extracted with qpdf) rendered client-side via pdf.js. PNG is a fallback
+// for when the pdf.js CDN can't be reached.
+const SLIDE_PDF_URL = "assets/slide-d1-p13-token.pdf";
+const SLIDE_PNG_FALLBACK = "assets/slide-d1-p13-token.png";
+const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
 const $ = (id) => document.getElementById(id);
 
 // ---------------------------------------------------------------------
@@ -25,6 +32,7 @@ let requestSeq = 0;          // guards against overlapping lookup() calls
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   bindNav();
+  renderSlidePage(); // fire-and-forget — doesn't block the rest of boot
   bindSelectionLookup();
   bindResultActions();
 
@@ -33,6 +41,53 @@ document.addEventListener("DOMContentLoaded", async () => {
   await refreshSavedTerms();
   updateStatChips();
 });
+
+// ---------------------------------------------------------------------
+// real slide rendering (pdf.js canvas + selectable text layer)
+// ---------------------------------------------------------------------
+async function renderSlidePage() {
+  const wrap = $("slidePageWrap");
+  const canvas = $("slideCanvas");
+  const textLayerDiv = $("slideTextLayer");
+
+  try {
+    if (!window.pdfjsLib) throw new Error("pdf.js chưa sẵn sàng (CDN có thể bị chặn)");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+
+    const pdf = await pdfjsLib.getDocument(SLIDE_PDF_URL).promise;
+    const page = await pdf.getPage(1);
+
+    const containerWidth = wrap.clientWidth || wrap.parentElement.clientWidth || 640;
+    const unscaled = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: containerWidth / unscaled.width });
+
+    const ctx = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    wrap.style.height = viewport.height + "px";
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const textContent = await page.getTextContent();
+    textLayerDiv.style.width = viewport.width + "px";
+    textLayerDiv.style.height = viewport.height + "px";
+    textLayerDiv.innerHTML = "";
+
+    // pdf.js has renamed this param across versions (textContent → textContentSource)
+    // — pass both so it works regardless of the exact 3.x build the CDN serves.
+    const task = pdfjsLib.renderTextLayer({
+      textContent,
+      textContentSource: textContent,
+      container: textLayerDiv,
+      viewport,
+      textDivs: [],
+    });
+    if (task && task.promise) await task.promise;
+  } catch (e) {
+    console.warn("Không render được slide PDF thật, dùng ảnh dự phòng:", e);
+    wrap.innerHTML = `<img src="${SLIDE_PNG_FALLBACK}" alt="Slide: Token — model không đọc 'từ', model đọc mảnh chữ" style="display:block;width:100%;height:auto;">`;
+  }
+}
 
 // ---------------------------------------------------------------------
 // theme toggle
@@ -131,8 +186,16 @@ function bindSelectionLookup() {
       }
       let ctx = "";
       const node = sel.anchorNode;
-      const para = node && node.parentElement ? node.parentElement.closest("p") : null;
-      if (para) ctx = para.textContent.trim().replace(/\s+/g, " ");
+      const el = node && node.parentElement;
+      const para = el ? el.closest("p") : null;
+      if (para) {
+        ctx = para.textContent.trim().replace(/\s+/g, " ");
+      } else {
+        // selection came from the PDF text layer (each word is its own <span>,
+        // no wrapping <p>) — use the whole slide's text as context instead.
+        const layer = el ? el.closest(".textLayer") : null;
+        if (layer) ctx = layer.textContent.trim().replace(/\s+/g, " ").slice(0, 600);
+      }
 
       pending = { text, ctx };
 

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=3">
+<link rel="stylesheet" href="css/styles.css?v=5">
 </head>
 <body>
 
@@ -51,35 +51,28 @@
     <!-- ============ LEFT: reader ============ -->
     <section class="card reader-card" id="reader">
       <div class="card-eyebrow eyebrow-red">ĐANG ĐỌC</div>
-      <h1 class="card-title">Building LLM Applications</h1>
-      <p class="card-sub">Bôi đen bất kỳ từ tiếng Anh nào bên dưới để AI giải thích ngay tại chỗ.</p>
+      <h1 class="card-title">AI &amp; LLM Foundation — Day 1</h1>
+      <p class="card-sub">Slide thật của khoá học · bôi đen bất kỳ từ nào bên dưới để AI giải thích ngay tại chỗ.</p>
 
       <div class="reader-body" id="readerBody">
-        <p>
-          A large language model (LLM) only knows what it learned during training.
-          When you ask about internal documents or recent events, the model may
-          hallucinate — producing answers that sound fluent and confident, but are
-          actually wrong.
-        </p>
-        <p>
-          Retrieval-Augmented Generation (RAG) solves this problem by letting the
-          system retrieve relevant information first, and only then generate the
-          answer. Documents are split into small chunks, converted into embeddings,
-          and stored in a vector database so the system can run semantic search
-          over them.
-        </p>
-        <p>
-          With this approach, there is no need for expensive fine-tuning every time
-          new documents arrive. You simply update the knowledge base, and the model
-          always answers from the latest source — with citations included so
-          learners can verify every claim.
+        <div class="slide-viewer" id="slideViewer">
+          <div class="slide-page-wrap" id="slidePageWrap">
+            <canvas id="slideCanvas"></canvas>
+            <div class="textLayer" id="slideTextLayer"></div>
+          </div>
+        </div>
+
+        <p class="slide-caption">
+          📑 Slide thật · <b>Day 1 — AI &amp; LLM Foundation</b> · trang 13/29 ·
+          <code>data/vlearn-pack/slides/d1-slide-hackathon.pdf</code> ·
+          bôi đen chữ ngay trên slide để tra cứu (giống bôi đen PDF bình thường)
         </p>
 
         <button id="lookupIcon" class="lookup-icon" title="Giải thích từ này">⚡</button>
       </div>
 
       <div class="hint-box">
-        💡 Thử bôi đen: <b>RAG</b>, <b>embeddings</b>, <b>hallucinate</b>, <b>vector database</b>, <b>fine-tuning</b> — rồi bấm icon ⚡ hiện cạnh từ.
+        💡 Thử bôi đen ngay trên slide: <b>token</b>, <b>tokenizer</b>, <b>JSON</b>, <b>model</b> — rồi bấm icon ⚡ hiện cạnh từ.
       </div>
     </section>
 
@@ -172,6 +165,7 @@
 
 </main>
 
-<script src="js/app.js?v=3" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="js/app.js?v=4" defer></script>
 </body>
 </html>
