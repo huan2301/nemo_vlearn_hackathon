@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers config for deploying the static frontend
+  // (codebase/frontend) as static assets — no server-side Worker code needed,
+  // this is a plain HTML/CSS/JS site.
+  "name": "nemo-vlearn-hackathon",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "./codebase/frontend",
+    "not_found_handling": "single-page-application"
+  }
+}
