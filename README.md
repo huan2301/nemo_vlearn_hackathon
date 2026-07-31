@@ -2,7 +2,7 @@
 
 **SPEC → Prototype → Demo.** Đây không phải cuộc thi code — đây là cuộc thi **tư duy sản phẩm AI**.
 
-## Nhóm Fiveboiz E403
+## Nhóm Nemo vlearn
 
 | Thành viên | Mã học viên | Phụ trách chính | Tỷ lệ đóng góp |
 |---|---|---|---:|
