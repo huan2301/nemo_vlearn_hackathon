@@ -9,7 +9,8 @@ const LEARNER_LEVEL = "coban"; // fixed to the simplest level, per product decis
 // Real slides are served by the backend from data/vlearn-pack/slides.
 // The frontend loads them through the API so the PDF is shared from one place.
 const SLIDE_PDF_URL = `${API_BASE}/api/slides/d1-slide-hackathon.pdf`;
-const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const PDFJS_WORKER_URL =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -19,12 +20,12 @@ const $ = (id) => document.getElementById(id);
 let sessionId = localStorage.getItem("vlearn_session_id") || null;
 let savedTerms = [];
 let lastLookups = Number(localStorage.getItem("vlearn_lookup_count") || 0);
-let currentPayload = null;   // last successful /api/explain response
+let currentPayload = null; // last successful /api/explain response
 let currentContext = "";
 let currentTerm = "";
 let currentExplainStyle = "tomtat"; // tomtat | vidu | sosanh | chuyensau
 let currentQuiz = null;
-let requestSeq = 0;          // guards against overlapping lookup() calls
+let requestSeq = 0; // guards against overlapping lookup() calls
 let slidePageObserver = null;
 
 // ---------------------------------------------------------------------
@@ -67,9 +68,13 @@ function bindNav() {
   document.querySelectorAll(".nav-link[data-tab]").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      document.querySelectorAll(".nav-link[data-tab]").forEach((x) => x.classList.remove("active"));
+      document
+        .querySelectorAll(".nav-link[data-tab]")
+        .forEach((x) => x.classList.remove("active"));
       a.classList.add("active");
-      document.getElementById(a.dataset.tab).scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .getElementById(a.dataset.tab)
+        .scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 }
@@ -89,7 +94,9 @@ async function checkHealth() {
     text.textContent = data.groq_available
       ? `Backend OK · ${data.primary_model}`
       : "Backend OK · thiếu GROQ_API_KEY";
-    $("statModel").textContent = data.groq_available ? data.primary_model.split("-")[0] : "—";
+    $("statModel").textContent = data.groq_available
+      ? data.primary_model.split("-")[0]
+      : "—";
   } catch (e) {
     pill.className = "status-pill err";
     text.textContent = "Không kết nối được backend";
@@ -104,10 +111,14 @@ async function ensureSession() {
     try {
       const res = await fetch(`${API_BASE}/api/sessions/${sessionId}`);
       if (res.ok) {
-        $("statSession").textContent = sessionId.replace("sess_", "").slice(0, 6);
+        $("statSession").textContent = sessionId
+          .replace("sess_", "")
+          .slice(0, 6);
         return;
       }
-    } catch (e) { /* fall through to create a new one */ }
+    } catch (e) {
+      /* fall through to create a new one */
+    }
   }
   try {
     const res = await fetch(`${API_BASE}/api/sessions`, {
@@ -133,7 +144,8 @@ async function renderAllSlidePages() {
   const indicator = $("slidePageIndicator");
 
   try {
-    if (!window.pdfjsLib) throw new Error("pdf.js chưa sẵn sàng (CDN có thể bị chặn)");
+    if (!window.pdfjsLib)
+      throw new Error("pdf.js chưa sẵn sàng (CDN có thể bị chặn)");
     pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
 
     const pdf = await pdfjsLib.getDocument(SLIDE_PDF_URL).promise;
@@ -159,11 +171,16 @@ async function renderAllSlidePages() {
       (entries) => {
         let best = null;
         entries.forEach((e) => {
-          if (e.isIntersecting && (!best || e.intersectionRatio > best.intersectionRatio)) best = e;
+          if (
+            e.isIntersecting &&
+            (!best || e.intersectionRatio > best.intersectionRatio)
+          )
+            best = e;
         });
-        if (best) indicator.textContent = `Trang ${best.target.dataset.page} / ${numPages}`;
+        if (best)
+          indicator.textContent = `Trang ${best.target.dataset.page} / ${numPages}`;
       },
-      { root: scroll, threshold: [0.25, 0.5, 0.75] }
+      { root: scroll, threshold: [0.25, 0.5, 0.75] },
     );
 
     // Render sequentially (not all at once) — kinder to CPU and to the pdf.js worker.
@@ -185,7 +202,8 @@ async function renderOneSlidePage(pdf, pageNum, block) {
   const textLayerDiv = wrap.querySelector(".textLayer");
 
   const page = await pdf.getPage(pageNum);
-  const containerWidth = wrap.clientWidth || wrap.parentElement.clientWidth || 640;
+  const containerWidth =
+    wrap.clientWidth || wrap.parentElement.clientWidth || 640;
   const unscaled = page.getViewport({ scale: 1 });
   const viewport = page.getViewport({ scale: containerWidth / unscaled.width });
 
@@ -212,7 +230,11 @@ async function renderOneSlidePage(pdf, pageNum, block) {
   });
   if (task && task.promise) await task.promise;
 
-  const pageText = textContent.items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+  const pageText = textContent.items
+    .map((it) => it.str)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
   block.dataset.pageText = pageText;
   await loadDifficultTermsForPage(pageText, block);
 }
@@ -261,7 +283,10 @@ async function loadDifficultTermsForPage(pageText, block) {
       chip.textContent = "⚠ " + t.term;
       chip.title = t.expanded_form || "";
       chip.onclick = () => {
-        const ctx = pageText.slice(Math.max(0, t.start - 150), Math.min(pageText.length, t.end + 250));
+        const ctx = pageText.slice(
+          Math.max(0, t.start - 150),
+          Math.min(pageText.length, t.end + 250),
+        );
         lookup(t.term, ctx, currentExplainStyle);
       };
       chipsWrap.appendChild(chip);
@@ -299,7 +324,8 @@ function bindSelectionLookup() {
         // selection came from a slide's PDF text layer (each word is its own
         // <span>, no wrapping <p>) — use that page's full text as context.
         const layer = el ? el.closest(".textLayer") : null;
-        if (layer) ctx = layer.textContent.trim().replace(/\s+/g, " ").slice(0, 600);
+        if (layer)
+          ctx = layer.textContent.trim().replace(/\s+/g, " ").slice(0, 600);
       }
 
       pending = { text, ctx };
@@ -307,8 +333,10 @@ function bindSelectionLookup() {
       const range = sel.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       const host = readerBody.getBoundingClientRect();
-      icon.style.left = Math.min(rect.right - host.left + 6, readerBody.clientWidth - 40) + "px";
-      icon.style.top = (rect.top - host.top - 40) + "px";
+      icon.style.left =
+        Math.min(rect.right - host.left + 6, readerBody.clientWidth - 40) +
+        "px";
+      icon.style.top = rect.top - host.top - 40 + "px";
       icon.style.display = "flex";
     }, 10);
   });
@@ -399,7 +427,11 @@ async function lookup(term, ctx, style) {
     $("result").hidden = true; // never show a stale success card behind the error
     $("errorState").hidden = false;
     $("errorMsg").textContent =
-      "Lỗi: " + e.message + ". Kiểm tra backend đã chạy ở " + API_BASE + " và có GROQ_API_KEY chưa.";
+      "Lỗi: " +
+      e.message +
+      ". Kiểm tra backend đã chạy ở " +
+      API_BASE +
+      " và có GROQ_API_KEY chưa.";
   }
 }
 
@@ -415,7 +447,11 @@ function renderResult(data) {
   $("rFull").textContent = data.expanded_form ? "— " + data.expanded_form : "";
 
   const tag = $("rConfidence");
-  const map = { high: ["Đáng tin cậy", "high"], low: ["Chưa chắc chắn", "low"], insufficient: ["Thiếu căn cứ", "insufficient"] };
+  const map = {
+    high: ["Đáng tin cậy", "high"],
+    low: ["Chưa chắc chắn", "low"],
+    insufficient: ["Thiếu căn cứ", "insufficient"],
+  };
   const [label, cls] = map[data.confidence] || ["—", "low"];
   tag.textContent = label;
   tag.className = "confidence-tag " + cls;
@@ -426,7 +462,8 @@ function renderResult(data) {
   const diffBadge = $("rDifficulty");
   if (data.is_difficult) {
     diffBadge.hidden = false;
-    $("rDifficultyReason").textContent = data.difficulty_reason || "AI đánh giá đây là thuật ngữ cần chú ý.";
+    $("rDifficultyReason").textContent =
+      data.difficulty_reason || "AI đánh giá đây là thuật ngữ cần chú ý.";
   } else {
     diffBadge.hidden = true;
   }
@@ -440,18 +477,23 @@ function renderResult(data) {
   $("rExplainBox").hidden = isInsufficient;
   $("rExampleBox").hidden = isInsufficient || !data.example;
   $("rEvidenceBox").hidden = !data.evidence_span;
-  $("rRelatedBox").hidden = isInsufficient || !(data.related_concepts || []).length;
+  $("rRelatedBox").hidden =
+    isInsufficient || !(data.related_concepts || []).length;
   $("btnSave").hidden = isInsufficient;
 
-  $("rExplain").textContent = data.styled_explanation || data.plain_explanation || "";
+  $("rExplain").textContent =
+    data.styled_explanation || data.plain_explanation || "";
   $("rExample").textContent = data.example || "";
-  $("rEvidence").textContent = data.evidence_span ? `"${data.evidence_span}"` : "";
+  $("rEvidence").textContent = data.evidence_span
+    ? `"${data.evidence_span}"`
+    : "";
 
   // So sánh với khái niệm đã biết
   const cmpBox = $("rComparisonBox");
   if (data.comparison_concept && data.comparison_concept.comparison) {
     cmpBox.hidden = false;
-    $("rComparison").textContent = `${data.comparison_concept.concept}: ${data.comparison_concept.comparison}`;
+    $("rComparison").textContent =
+      `${data.comparison_concept.concept}: ${data.comparison_concept.comparison}`;
   } else {
     cmpBox.hidden = true;
   }
@@ -461,7 +503,9 @@ function renderResult(data) {
     fb.hidden = false;
     fb.innerHTML =
       `⚠️ AI chưa đủ căn cứ để giải thích chắc chắn từ này trong ngữ cảnh hiện tại.` +
-      (data.clarifying_question ? `<br><br><b>Câu hỏi gợi ý:</b> ${data.clarifying_question}` : "") +
+      (data.clarifying_question
+        ? `<br><br><b>Câu hỏi gợi ý:</b> ${data.clarifying_question}`
+        : "") +
       `<br><br>Không đoán bừa để tránh dạy sai kiến thức — bạn có thể hỏi trực tiếp tutor VLearn.`;
   } else {
     fb.hidden = true;
@@ -482,8 +526,12 @@ function renderResult(data) {
   btn.disabled = !!data.saved;
   btn.textContent = data.saved ? "✓ Đã lưu vào sổ tay" : "💾 Lưu để ôn tập";
 
-  $("rModelTag").textContent = data.used_model ? "Trả lời bởi: " + data.used_model : "";
-  $("statModel").textContent = data.used_model ? data.used_model.split("-")[0] : $("statModel").textContent;
+  $("rModelTag").textContent = data.used_model
+    ? "Trả lời bởi: " + data.used_model
+    : "";
+  $("statModel").textContent = data.used_model
+    ? data.used_model.split("-")[0]
+    : $("statModel").textContent;
 
   renderQuiz(data.quiz, data);
 
@@ -518,7 +566,9 @@ function renderQuiz(quiz, explainData) {
     b.className = "quiz-opt";
     b.dataset.key = opt.key;
     b.innerHTML = `<span class="k">${escapeHtml(opt.key)}.</span>${escapeHtml(opt.text)}`;
-    b.addEventListener("click", () => submitQuizAnswer(opt.key, quiz, explainData, optsWrap));
+    b.addEventListener("click", () =>
+      submitQuizAnswer(opt.key, quiz, explainData, optsWrap),
+    );
     optsWrap.appendChild(b);
   });
 }
@@ -561,8 +611,11 @@ async function submitQuizAnswer(selectedKey, quiz, explainData, optsWrap) {
 
     const feedback = $("quizFeedback");
     feedback.hidden = false;
-    feedback.className = "quiz-feedback " + (data.correct ? "correct" : "wrong");
-    feedback.textContent = (data.correct ? "✓ Chính xác! " : "✗ Chưa đúng. ") + (data.explanation || "");
+    feedback.className =
+      "quiz-feedback " + (data.correct ? "correct" : "wrong");
+    feedback.textContent =
+      (data.correct ? "✓ Chính xác! " : "✗ Chưa đúng. ") +
+      (data.explanation || "");
 
     updateProgressChips(data.progress);
 
@@ -587,8 +640,11 @@ async function submitQuizAnswer(selectedKey, quiz, explainData, optsWrap) {
 // ---------------------------------------------------------------------
 function updateProgressChips(progress) {
   if (!progress) return;
-  $("pQuizScore").textContent = `${progress.quiz_correct_count}/${progress.quiz_attempted_count}`;
-  $("pAccuracy").textContent = progress.quiz_attempted_count ? Math.round(progress.accuracy * 100) + "%" : "—";
+  $("pQuizScore").textContent =
+    `${progress.quiz_correct_count}/${progress.quiz_attempted_count}`;
+  $("pAccuracy").textContent = progress.quiz_attempted_count
+    ? Math.round(progress.accuracy * 100) + "%"
+    : "—";
   $("pStreak").textContent = progress.current_streak;
 }
 
@@ -598,7 +654,9 @@ async function refreshProgress() {
     const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/progress`);
     if (!res.ok) return;
     updateProgressChips(await res.json());
-  } catch (e) { /* silent — panel just stays at defaults */ }
+  } catch (e) {
+    /* silent — panel just stays at defaults */
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -608,20 +666,23 @@ function bindResultActions() {
   $("btnSave").addEventListener("click", async () => {
     if (!currentPayload || !sessionId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          term: currentPayload.term,
-          expanded_form: currentPayload.expanded_form,
-          meaning_in_context: currentPayload.meaning_in_context,
-          plain_explanation: currentPayload.plain_explanation,
-          example: currentPayload.example,
-          evidence_span: currentPayload.evidence_span,
-          learner_level: LEARNER_LEVEL,
-          is_difficult: currentPayload.is_difficult || false,
-        }),
-      });
+      const res = await fetch(
+        `${API_BASE}/api/sessions/${sessionId}/saved-terms`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            term: currentPayload.term,
+            expanded_form: currentPayload.expanded_form,
+            meaning_in_context: currentPayload.meaning_in_context,
+            plain_explanation: currentPayload.plain_explanation,
+            example: currentPayload.example,
+            evidence_span: currentPayload.evidence_span,
+            learner_level: LEARNER_LEVEL,
+            is_difficult: currentPayload.is_difficult || false,
+          }),
+        },
+      );
       if (!res.ok) throw new Error("save failed");
       const savedCard = await res.json();
       currentPayload.saved = true;
@@ -653,13 +714,17 @@ function bindResultActions() {
 async function refreshSavedTerms() {
   if (!sessionId) return;
   try {
-    const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`);
+    const res = await fetch(
+      `${API_BASE}/api/sessions/${sessionId}/saved-terms`,
+    );
     if (!res.ok) return;
     const data = await res.json();
     savedTerms = data.terms || [];
     renderNotebook();
     updateStatChips();
-  } catch (e) { /* silent — notebook just stays empty */ }
+  } catch (e) {
+    /* silent — notebook just stays empty */
+  }
 }
 
 function renderNotebook() {
@@ -685,17 +750,26 @@ function renderNotebook() {
       <span class="n-level">${t.learner_level || "coban"}</span>
       <button class="n-del" title="Xoá khỏi sổ tay">✕</button>
     `;
-    row.querySelector(".n-meaning").parentElement.addEventListener("click", (e) => {
-      if (e.target.classList.contains("n-del")) return;
-      document.getElementById("notebook").scrollIntoView({ behavior: "smooth" });
-    });
+    row
+      .querySelector(".n-meaning")
+      .parentElement.addEventListener("click", (e) => {
+        if (e.target.classList.contains("n-del")) return;
+        document
+          .getElementById("notebook")
+          .scrollIntoView({ behavior: "smooth" });
+      });
     row.querySelector(".n-del").addEventListener("click", async (e) => {
       e.stopPropagation();
       try {
-        await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}`, { method: "DELETE" });
+        await fetch(
+          `${API_BASE}/api/sessions/${sessionId}/saved-terms/${t.term_id}`,
+          { method: "DELETE" },
+        );
         await refreshSavedTerms();
         await refreshDueFlashcards();
-      } catch (err) { /* noop */ }
+      } catch (err) {
+        /* noop */
+      }
     });
     list.appendChild(row);
   });
@@ -707,11 +781,15 @@ function renderNotebook() {
 async function refreshDueFlashcards() {
   if (!sessionId) return;
   try {
-    const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/flashcards/due`);
+    const res = await fetch(
+      `${API_BASE}/api/sessions/${sessionId}/flashcards/due`,
+    );
     if (!res.ok) return;
     const data = await res.json();
     renderDueList(data.terms || []);
-  } catch (e) { /* silent — due section just stays empty */ }
+  } catch (e) {
+    /* silent — due section just stays empty */
+  }
 }
 
 function renderDueList(terms) {
@@ -740,7 +818,9 @@ function renderDueList(terms) {
       </div>
     `;
     row.querySelectorAll("button").forEach((b) => {
-      b.addEventListener("click", () => reviewFlashcard(t.term_id, b.dataset.quality, row));
+      b.addEventListener("click", () =>
+        reviewFlashcard(t.term_id, b.dataset.quality, row),
+      );
     });
     list.appendChild(row);
   });
@@ -749,11 +829,14 @@ function renderDueList(terms) {
 async function reviewFlashcard(termId, quality, rowEl) {
   rowEl.querySelectorAll("button").forEach((b) => (b.disabled = true));
   try {
-    const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/flashcards/${termId}/review`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quality }),
-    });
+    const res = await fetch(
+      `${API_BASE}/api/sessions/${sessionId}/flashcards/${termId}/review`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quality }),
+      },
+    );
     if (!res.ok) throw new Error("review failed");
     await refreshDueFlashcards();
     await refreshSavedTerms();
