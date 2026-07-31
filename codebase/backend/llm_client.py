@@ -213,6 +213,26 @@ learner_level: "{learner_level}"
                     {"concept": "Reward Model", "relationship": "Mô hình thưởng mô phỏng sở thích con người"}
                 ]
             },
+            "RNN": {
+                "expanded_form": "Recurrent Neural Network",
+                "meaning_in_context": "Mạng thần kinh hồi quy xử lý dữ liệu chuỗi theo thời gian.",
+                "plain_explanation": "Mô hình AI xử lý từng từ trong câu và ghi nhớ thông tin của các từ trước đó.",
+                "example": "Dự đoán từ tiếp theo trong câu bằng mô hình RNN.",
+                "related_concepts": [
+                    {"concept": "LSTM", "relationship": "Biến thể RNN giải quyết vấn đề nhớ xa"},
+                    {"concept": "Sequential Data", "relationship": "Dữ liệu dạng chuỗi như văn bản, âm thanh"}
+                ]
+            },
+            "SFT": {
+                "expanded_form": "Supervised Fine-Tuning",
+                "meaning_in_context": "Bước tinh chỉnh mô hình AI có giám sát bằng các cặp dữ liệu câu hỏi-câu trả lời chuẩn.",
+                "plain_explanation": "Học có giám sát giúp AI quen với định dạng trả lời trước khi tinh chỉnh bằng RLHF.",
+                "example": "Dùng tập dữ liệu câu hỏi-đáp mẫu để huấn luyện AI phản hồi đúng cấu trúc.",
+                "related_concepts": [
+                    {"concept": "RLHF", "relationship": "Bước tinh chỉnh tiếp theo sau SFT"},
+                    {"concept": "Fine-Tuning", "relationship": "Quá trình huấn luyện lại mô hình"}
+                ]
+            },
             "MCP": {
                 "expanded_form": "Model Context Protocol",
                 "meaning_in_context": "Giao thức chuẩn cho phép mô hình AI kết nối và tương tác an toàn với các nguồn dữ liệu ngoài.",
@@ -232,22 +252,62 @@ learner_level: "{learner_level}"
                     {"concept": "Transformer", "relationship": "Kiến trúc mạng xã hội cốt lõi của LLM"},
                     {"concept": "Token", "relationship": "Đơn vị văn bản nhỏ mà LLM xử lý"}
                 ]
+            },
+            "RAG": {
+                "expanded_form": "Retrieval-Augmented Generation",
+                "meaning_in_context": "Kỹ thuật kết hợp tìm kiếm dữ liệu ngoài với mô hình AI sinh văn bản.",
+                "plain_explanation": "RAG giúp AI trả lời chính xác bằng cách tra cứu tài liệu thực tế trước khi sinh câu trả lời.",
+                "example": "AI đọc tài liệu nội bộ công ty để trả lời câu hỏi chính xác.",
+                "related_concepts": [
+                    {"concept": "Vector Database", "relationship": "Nơi lưu trữ và tìm kiếm dữ liệu RAG"},
+                    {"concept": "Embedding", "relationship": "Chuyển văn bản thành vectơ để tìm kiếm"}
+                ]
+            },
+            "LORA": {
+                "expanded_form": "Low-Rank Adaptation",
+                "meaning_in_context": "Kỹ thuật tinh chỉnh mô hình AI giúp tiết kiệm bộ nhớ và tài nguyên tính toán.",
+                "plain_explanation": "LoRA giúp huấn luyện AI nhanh hơn bằng cách chỉ cập nhật một số ít tham số nhỏ.",
+                "example": "Tinh chỉnh mô hình LLM lớn trên GPU cá nhân bằng LoRA.",
+                "related_concepts": [
+                    {"concept": "Fine-tuning", "relationship": "Quá trình tinh chỉnh mô hình"},
+                    {"concept": "PEFT", "relationship": "Các kỹ thuật tinh chỉnh tiết kiệm tham số"}
+                ]
+            },
+            "COT": {
+                "expanded_form": "Chain-of-Thought",
+                "meaning_in_context": "Kỹ thuật gợi ý suy luận theo chuỗi các bước logic.",
+                "plain_explanation": "CoT giúp AI giải quyết bài toán khó bằng cách chia nhỏ thành từng bước suy luận.",
+                "example": "Hỏi AI suy nghĩ từng bước để giải bài toán đố.",
+                "related_concepts": [
+                    {"concept": "Prompt Engineering", "relationship": "Kỹ thuật viết lời gợi ý cho AI"},
+                    {"concept": "Reasoning", "relationship": "Khả năng suy luận của mô hình AI"}
+                ]
+            },
+            "SYSTEM PROM": {
+                "expanded_form": "System Prompt",
+                "meaning_in_context": "Lời gợi ý hệ thống thiết lập vai trò, quy tắc và giới hạn cho AI.",
+                "plain_explanation": "System prompt là bản hướng dẫn ẩn giúp AI biết nó là ai và cần ứng xử thế nào.",
+                "example": "Đặt System Prompt: 'Bạn là chuyên gia dịch thuật tiếng Anh'.",
+                "related_concepts": [
+                    {"concept": "User Prompt", "relationship": "Câu hỏi trực tiếp từ người dùng"},
+                    {"concept": "Instruction Tuning", "relationship": "Huấn luyện AI tuân thủ hướng dẫn"}
+                ]
             }
         }
 
-        if term_clean in glossary_dict:
-            item = glossary_dict[term_clean]
-            return {
-                "term": term,
-                "expanded_form": item["expanded_form"],
-                "meaning_in_context": item["meaning_in_context"],
-                "plain_explanation": item["plain_explanation"],
-                "example": item["example"],
-                "related_concepts": item["related_concepts"],
-                "confidence": "high",
-                "evidence_span": context[:50] if context else term,
-                "clarifying_question": None
-            }
+        for key, item in glossary_dict.items():
+            if key in term_clean or term_clean in key:
+                return {
+                    "term": term,
+                    "expanded_form": item.get("expanded_form"),
+                    "meaning_in_context": item.get("meaning_in_context", f"Nghĩa của {term} trong ngữ cảnh."),
+                    "plain_explanation": item.get("plain_explanation", f"Giải thích ngắn gọn về {term}."),
+                    "example": item.get("example", f"Ví dụ minh họa cho {term}."),
+                    "related_concepts": item.get("related_concepts", []),
+                    "confidence": "high",
+                    "evidence_span": context[:50] if context else term,
+                    "clarifying_question": None
+                }
 
         # Thuật ngữ tổng quát không có trong từ điển mẫu
         return {
