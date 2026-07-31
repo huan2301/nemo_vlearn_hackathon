@@ -1,76 +1,56 @@
-# VLearn AI Tutor — MVP Prototype
+# VLearn AI Tutor — Prototype (mức Working)
 
-## Mô tả
+Prototype cho Hướng A – VLearn. Lát cắt: **học viên đang đọc slide bài giảng, gặp thuật ngữ AI không hiểu, bôi đen → AI giải thích đúng ngữ cảnh → kết quả là học viên hiểu ngay và có 1 flashcard để ôn lại sau.**
 
-Prototype AI Tutor cho VLearn giúp người học hiểu nhanh các thuật ngữ AI ngay khi đọc tài liệu tiếng Anh. Chỉ cần bôi đen từ chưa hiểu, AI sẽ giải thích ngay theo ngữ cảnh và cho phép lưu lại để ôn tập sau.
+Luồng đầy đủ đã build: mở slide → hệ thống tự phát hiện thuật ngữ khó theo trình độ người học → bôi đen (hoặc bấm chip gợi ý) → AI giải thích theo ngữ cảnh → AI đánh giá độ khó → chọn 1 trong 4 cách học (Tóm tắt / Ví dụ / So sánh / Chuyên sâu) → so sánh với khái niệm quen thuộc → làm 1 câu quiz kiểm tra hiểu bài ngay → cập nhật Learning Profile → tự sinh flashcard → nhắc ôn lại theo spaced repetition (SM-2 rút gọn).
 
-```
-Đọc tài liệu → Bôi đen từ/cụm từ chưa hiểu → Icon AI xuất hiện → Bấm icon →
-AI phân tích ngữ cảnh và giải thích →
-Hiển thị:
-Tên đầy đủ (nếu là từ viết tắt)
-Nghĩa tiếng Việt
-Giải thích dễ hiểu
-Ví dụ minh họa
-Lĩnh vực liên quan
-→ Lưu vào sổ tay để ôn tập sau
-```
+Mọi bước ra quyết định đều gọi AI thật (Groq, fallback Gemini, fallback cuối cùng là rule-engine local khi mất mạng/hết quota) — không có bước nào mock.
 
 ## Cấu trúc
 
 ```
 codebase/
-├── backend/
-│   ├── main.py            # FastAPI server
-│   ├── ai_agent.py        # AI Agent (Groq)
-│   ├── data_loader.py     # Parse transcript bài giảng
-│   ├── requirements.txt   # Dependencies
-│   ├── .env               # API key (KHÔNG commit)
-│   └── .env.example       # Template
+├── backend/                 FastAPI — xem codebase/backend/README.md để biết chi tiết API
 └── frontend/
-    ├── index.html          # Trang chính
-    ├── css/styles.css      # Styling
-    └── js/app.js           # Logic tương tác
+    ├── index.html
+    ├── css/styles.css
+    ├── js/
+    │   ├── config.js          API_BASE — sửa 1 dòng này khi deploy (tự nhận diện local vs. production)
+    │   └── app.js                toàn bộ logic: slide viewer (pdf.js), tra cứu, quiz, sổ tay, flashcard
+    └── assets/
+        └── slide-d1-selected.pdf   8 trang thật trích từ data/vlearn-pack/slides/d1-slide-hackathon.pdf
 ```
 
-## Cách chạy
-
-### 1. Cài đặt dependencies
+## Chạy local
 
 ```bash
+# 1) Backend
 cd codebase/backend
 pip install -r requirements.txt
+# tạo file .env với GROQ_API_KEY — xem codebase/backend/README.md
+python app.py                # http://127.0.0.1:8000
+
+# 2) Frontend — mở codebase/frontend/index.html bằng 1 static server (VD VS Code Live Server)
+# KHÔNG mở trực tiếp bằng file:// — pdf.js cần chạy qua http(s) mới render được slide.
 ```
 
-### 2. Cấu hình API key
+## Tính năng đã build
 
-```bash
-# Tạo file .env trong codebase/backend/
-cp .env.example .env
-# Sửa GROQ_API_KEY trong file .env
-```
+- **Slide viewer thật**: render trực tiếp file PDF gốc bằng pdf.js (canvas + text layer), cuộn xem đủ nhiều trang liền mạch, bôi đen chữ ngay trên slide y hệt trình duyệt PDF gốc — không phải ảnh chụp màn hình.
+- Tự động quét mỗi trang, gợi ý thuật ngữ khó theo trình độ người học hiện tại (chip bấm nhanh, không cần tự bôi đen).
+- Bôi đen bất kỳ cụm từ nào trên slide → AI giải thích đúng theo ngữ cảnh đoạn đang đọc (không giải thích chung chung).
+- 4 cách học chọn được ngay tại chỗ sau khi có kết quả: Tóm tắt / Ví dụ / So sánh / Chuyên sâu.
+- AI tự đánh giá thuật ngữ này có khó với trình độ hiện tại không + so sánh với 1 khái niệm quen thuộc để dễ hình dung.
+- 1 câu quiz trắc nghiệm kiểm tra hiểu bài ngay sau khi đọc giải thích, chấm điểm tức thì, giải thích lại nếu sai.
+- Learning Progress: điểm quiz, % trả lời đúng, streak đúng liên tiếp.
+- Sổ tay ôn tập + Flashcard nhắc ôn theo spaced repetition (SM-2 rút gọn) — có cache `localStorage` nên không mất khi backend restart (chỉ mất lịch ôn tập chi tiết của từng thẻ, không mất danh sách từ).
 
-### 3. Chạy server
+## Deploy miễn phí
 
-```bash
-cd codebase/backend
-python -m uvicorn main:app --reload --port 8000
-```
+Xem `DEPLOY.md` ở gốc repo: Render (backend) + Cloudflare Pages (frontend), cả hai đều $0, không cần thẻ.
 
-### 4. Mở trình duyệt
+## Lưu ý dữ liệu & bảo mật
 
-Truy cập: http://localhost:8000
-
-## Tech Stack
-
-- **Backend:** Python FastAPI
-- **AI:** Groq LLM (configured via GROQ_API_KEY)
-- **Frontend:** HTML / CSS / JavaScript (thuần)
-- **Data:** 6 transcript bài giảng bản sạch (~700 đoạn có mã trích dẫn)
-
-## Lưu ý
-
-- File `.env` chứa API key — KHÔNG commit lên repo
-- Data trong `data/vlearn-pack/` chỉ dùng trong phạm vi hackathon
-- Prototype mức **Working** — chạy end-to-end với data thật
-- AI call thật ở quyết định trung tâm (sinh câu hỏi, trả lời, sinh quiz)
+- `.env` chứa API key thật — không commit (đã có trong `.gitignore`, pattern `*.env`).
+- Slide dùng để demo trên frontend chỉ là bản trích 8 trang (`assets/slide-d1-selected.pdf`), không phải file gốc đầy đủ.
+- **Cần nhóm tự kiểm tra lại**: thư mục `data/vlearn-pack/` (chatlog CSV, 6 transcript, 2 file PDF slide gốc) hiện đang được `git` theo dõi trong repo này — nên rà lại với quy định "không commit data pack vào repo nộp bài" ở `01-de-bai.md` trước khi nộp bài.

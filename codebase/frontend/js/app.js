@@ -1,9 +1,10 @@
 // =====================================================================
 // AI Glossary Tutor — frontend logic
 // Calls the REAL backend (codebase/backend) — no mock data.
-// If your backend runs on a different host/port, change API_BASE below.
+// API_BASE comes from js/config.js (auto: localhost in dev, your deployed
+// backend URL in production) — edit config.js, not this file, to repoint it.
 // =====================================================================
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "http://127.0.0.1:8000";
 const LEARNER_LEVEL = "coban"; // fixed to the simplest level, per product decision
 
 // Real slides are served by the backend from data/vlearn-pack/slides.
@@ -12,13 +13,18 @@ const SLIDE_PDF_URL = `${API_BASE}/api/slides/d1-slide-hackathon.pdf`;
 const PDFJS_WORKER_URL =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
+// Local cache of saved terms (Notebook) — lets the notebook keep showing what
+// the learner already saved even if the page reloads or the backend restarts
+// and loses its in-memory session data (see resyncSavedTermsToSession below).
+const SAVED_TERMS_CACHE_KEY = "vlearn_saved_terms_cache";
+
 const $ = (id) => document.getElementById(id);
 
 // ---------------------------------------------------------------------
 // state
 // ---------------------------------------------------------------------
 let sessionId = localStorage.getItem("vlearn_session_id") || null;
-let savedTerms = [];
+let savedTerms = loadCachedSavedTerms();
 let lastLookups = Number(localStorage.getItem("vlearn_lookup_count") || 0);
 let currentPayload = null; // last successful /api/explain response
 let currentContext = "";
@@ -34,10 +40,16 @@ let slidePageObserver = null;
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
   bindNav();
+  $("apiDocsLink").href = `${API_BASE}/docs`;
   renderAllSlidePages(); // fire-and-forget — doesn't block the rest of boot
   bindSelectionLookup();
   bindResultActions();
   bindStyleButtons();
+
+  // Show whatever was cached locally right away — don't make the learner
+  // wait on the network (or stare at an empty notebook) before seeing it.
+  renderNotebook();
+  updateStatChips();
 
   await checkHealth();
   await ensureSession();
@@ -136,6 +148,94 @@ async function ensureSession() {
 }
 
 // ---------------------------------------------------------------------
+// local cache of saved terms — survives page reloads AND backend restarts
+// ---------------------------------------------------------------------
+function loadCachedSavedTerms() {
+  try {
+    const raw = localStorage.getItem(SAVED_TERMS_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function persistSavedTermsCache(terms) {
+  try {
+    localStorage.setItem(SAVED_TERMS_CACHE_KEY, JSON.stringify(terms || []));
+  } catch (e) { /* storage full/unavailable — cache is best-effort */ }
+}
+
+// If the backend restarted since our last visit, its in-memory sessions are
+// gone and every session-scoped call 404s with the old cached sessionId.
+// Call this on a 404: it clears the stale id, creates a fresh session, and
+// tells the caller whether it's worth retrying the original request.
+// Concurrent callers (progress/notebook/due all firing around the same time)
+// share ONE recovery attempt instead of each creating their own session.
+let sessionRecoveryPromise = null;
+
+async function refreshSessionIfStale(res) {
+  if (!res || res.status !== 404) return false;
+  if (!sessionRecoveryPromise) {
+    sessionRecoveryPromise = recoverSession().finally(() => {
+      sessionRecoveryPromise = null;
+    });
+  }
+  return await sessionRecoveryPromise;
+}
+
+async function recoverSession() {
+  const oldSessionId = sessionId;
+  sessionId = null;
+  localStorage.removeItem("vlearn_session_id");
+  await ensureSession();
+  if (sessionId && sessionId !== oldSessionId) {
+    // Fresh backend session has zero saved terms in memory — re-save
+    // whatever was cached locally so the notebook doesn't appear to lose them.
+    await resyncSavedTermsToSession();
+  }
+  return !!sessionId;
+}
+
+// Re-creates every locally-cached saved term as a flashcard on the (new)
+// backend session. Note: this restores the WORD LIST, but each term's review
+// history (repetitions/ease_factor/next_review_at) resets to "due now" —
+// the in-memory backend has no way to remember prior review progress across
+// a restart. That's an accepted tradeoff, not a bug.
+async function resyncSavedTermsToSession() {
+  const cached = loadCachedSavedTerms();
+  if (!cached.length || !sessionId) return;
+
+  const resynced = [];
+  for (const t of cached) {
+    try {
+      const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          term: t.term,
+          expanded_form: t.expanded_form,
+          meaning_in_context: t.meaning_in_context,
+          plain_explanation: t.plain_explanation,
+          example: t.example,
+          evidence_span: t.evidence_span,
+          learner_level: t.learner_level || LEARNER_LEVEL,
+          is_difficult: t.is_difficult || false,
+        }),
+      });
+      resynced.push(res.ok ? await res.json() : t);
+    } catch (e) {
+      resynced.push(t); // offline — keep the cached copy, try again next sync
+    }
+  }
+
+  savedTerms = resynced;
+  persistSavedTermsCache(savedTerms);
+  renderNotebook();
+  updateStatChips();
+}
+
+// ---------------------------------------------------------------------
 // real slide rendering (pdf.js canvas + selectable text layer), all pages,
 // scrollable — plus /api/terms/detect per page for the "thuật ngữ khó" chips.
 // ---------------------------------------------------------------------
@@ -217,6 +317,10 @@ async function renderOneSlidePage(pdf, pageNum, block) {
   const textContent = await page.getTextContent();
   textLayerDiv.style.width = viewport.width + "px";
   textLayerDiv.style.height = viewport.height + "px";
+  // pdf.js 3.x requires --scale-factor on the text-layer container to match
+  // viewport.scale, otherwise its internal span transforms are wrong and the
+  // selectable text drifts out of alignment with the rendered canvas image.
+  textLayerDiv.style.setProperty("--scale-factor", viewport.scale);
   textLayerDiv.innerHTML = "";
 
   // pdf.js has renamed this param across versions (textContent → textContentSource)
@@ -578,29 +682,37 @@ async function submitQuizAnswer(selectedKey, quiz, explainData, optsWrap) {
 
   try {
     const needsNewCard = !explainData.term_id && !explainData.saved;
-    const res = await fetch(`${API_BASE}/api/quiz/submit`, {
+    const quizBody = () => JSON.stringify({
+      session_id: sessionId,
+      term: explainData.term,
+      term_id: explainData.term_id || null,
+      term_data: needsNewCard
+        ? {
+            term: explainData.term,
+            expanded_form: explainData.expanded_form,
+            meaning_in_context: explainData.meaning_in_context,
+            plain_explanation: explainData.plain_explanation,
+            example: explainData.example,
+            evidence_span: explainData.evidence_span,
+            learner_level: LEARNER_LEVEL,
+            is_difficult: explainData.is_difficult || false,
+          }
+        : null,
+      quiz,
+      selected_key: selectedKey,
+    });
+    let res = await fetch(`${API_BASE}/api/quiz/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionId,
-        term: explainData.term,
-        term_id: explainData.term_id || null,
-        term_data: needsNewCard
-          ? {
-              term: explainData.term,
-              expanded_form: explainData.expanded_form,
-              meaning_in_context: explainData.meaning_in_context,
-              plain_explanation: explainData.plain_explanation,
-              example: explainData.example,
-              evidence_span: explainData.evidence_span,
-              learner_level: LEARNER_LEVEL,
-              is_difficult: explainData.is_difficult || false,
-            }
-          : null,
-        quiz,
-        selected_key: selectedKey,
-      }),
+      body: quizBody(),
     });
+    if (!res.ok && (await refreshSessionIfStale(res))) {
+      res = await fetch(`${API_BASE}/api/quiz/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: quizBody(),
+      });
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
@@ -651,8 +763,12 @@ function updateProgressChips(progress) {
 async function refreshProgress() {
   if (!sessionId) return;
   try {
-    const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/progress`);
-    if (!res.ok) return;
+    let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/progress`);
+    if (!res.ok) {
+      if (!(await refreshSessionIfStale(res))) return;
+      res = await fetch(`${API_BASE}/api/sessions/${sessionId}/progress`);
+      if (!res.ok) return;
+    }
     updateProgressChips(await res.json());
   } catch (e) {
     /* silent — panel just stays at defaults */
@@ -666,23 +782,29 @@ function bindResultActions() {
   $("btnSave").addEventListener("click", async () => {
     if (!currentPayload || !sessionId) return;
     try {
-      const res = await fetch(
-        `${API_BASE}/api/sessions/${sessionId}/saved-terms`,
-        {
+
+      const saveBody = JSON.stringify({
+        term: currentPayload.term,
+        expanded_form: currentPayload.expanded_form,
+        meaning_in_context: currentPayload.meaning_in_context,
+        plain_explanation: currentPayload.plain_explanation,
+        example: currentPayload.example,
+        evidence_span: currentPayload.evidence_span,
+        learner_level: LEARNER_LEVEL,
+        is_difficult: currentPayload.is_difficult || false,
+      });
+      let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: saveBody,
+      });
+      if (!res.ok && (await refreshSessionIfStale(res))) {
+        res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            term: currentPayload.term,
-            expanded_form: currentPayload.expanded_form,
-            meaning_in_context: currentPayload.meaning_in_context,
-            plain_explanation: currentPayload.plain_explanation,
-            example: currentPayload.example,
-            evidence_span: currentPayload.evidence_span,
-            learner_level: LEARNER_LEVEL,
-            is_difficult: currentPayload.is_difficult || false,
-          }),
-        },
-      );
+          body: saveBody,
+        });
+      }
       if (!res.ok) throw new Error("save failed");
       const savedCard = await res.json();
       currentPayload.saved = true;
@@ -714,17 +836,19 @@ function bindResultActions() {
 async function refreshSavedTerms() {
   if (!sessionId) return;
   try {
-    const res = await fetch(
-      `${API_BASE}/api/sessions/${sessionId}/saved-terms`,
-    );
-    if (!res.ok) return;
+    let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`);
+    if (!res.ok) {
+      if (!(await refreshSessionIfStale(res))) return;
+      res = await fetch(`${API_BASE}/api/sessions/${sessionId}/saved-terms`);
+      if (!res.ok) return;
+    }
     const data = await res.json();
     savedTerms = data.terms || [];
+    persistSavedTermsCache(savedTerms);
     renderNotebook();
     updateStatChips();
-  } catch (e) {
-    /* silent — notebook just stays empty */
-  }
+
+  } catch (e) { /* silent — notebook falls back to whatever is cached locally */ }
 }
 
 function renderNotebook() {
@@ -781,10 +905,13 @@ function renderNotebook() {
 async function refreshDueFlashcards() {
   if (!sessionId) return;
   try {
-    const res = await fetch(
-      `${API_BASE}/api/sessions/${sessionId}/flashcards/due`,
-    );
-    if (!res.ok) return;
+
+    let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/flashcards/due`);
+    if (!res.ok) {
+      if (!(await refreshSessionIfStale(res))) return;
+      res = await fetch(`${API_BASE}/api/sessions/${sessionId}/flashcards/due`);
+      if (!res.ok) return;
+    }
     const data = await res.json();
     renderDueList(data.terms || []);
   } catch (e) {
@@ -829,14 +956,19 @@ function renderDueList(terms) {
 async function reviewFlashcard(termId, quality, rowEl) {
   rowEl.querySelectorAll("button").forEach((b) => (b.disabled = true));
   try {
-    const res = await fetch(
-      `${API_BASE}/api/sessions/${sessionId}/flashcards/${termId}/review`,
-      {
+
+    let res = await fetch(`${API_BASE}/api/sessions/${sessionId}/flashcards/${termId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quality }),
+    });
+    if (!res.ok && (await refreshSessionIfStale(res))) {
+      res = await fetch(`${API_BASE}/api/sessions/${sessionId}/flashcards/${termId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quality }),
-      },
-    );
+      });
+    }
     if (!res.ok) throw new Error("review failed");
     await refreshDueFlashcards();
     await refreshSavedTerms();
