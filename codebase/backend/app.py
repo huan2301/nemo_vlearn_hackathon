@@ -13,10 +13,13 @@ from schemas import (
     QuizSubmitRequest, QuizSubmitResponse, LearningProgress,
     TermDetectionRequest, TermDetectionResponse, DetectedTerm,
     FlashcardReviewRequest,
-    ChatRequest, ChatResponse, HealthResponse
+    ChatRequest, ChatResponse, HealthResponse,
+    SlideSearchRequest, SlideSearchResponse, SlideSearchResult
 )
 from llm_client import llm_client
 from sessions import session_manager
+from eval_logger import log_explain_interaction
+from retriever_provider import get_retriever
 
 app = FastAPI(
     title="VLearn AI Tutor & Glossary API",
@@ -65,6 +68,13 @@ THONGTHAO_KNOWN_TERMS = {
     "vector database", "temperature"
 } | ALWAYS_EASY_TERMS
 
+# Ngưỡng số từ trong surrounding_context: dưới ngưỡng này coi là "quá ngắn" và
+# thử tự động tra cứu thêm ngữ cảnh thật từ slide index (nếu index đã được build).
+MIN_CONTEXT_WORDS = 8
+# Số ký tự tối đa lấy từ 1 chunk tìm được để bơm vào surrounding_context, tránh
+# prompt quá dài.
+MAX_RETRIEVED_CONTEXT_CHARS = 600
+
 
 def _estimate_is_difficult(term_key: str, learner_level: str) -> bool:
     key = term_key.lower()
@@ -75,6 +85,48 @@ def _estimate_is_difficult(term_key: str, learner_level: str) -> bool:
     # "coban" (mặc định): mọi thuật ngữ chuyên ngành đều coi là khó, trừ vài từ quá phổ biến
     return key not in ALWAYS_EASY_TERMS
 
+
+def _maybe_retrieve_context(selected_text: str, surrounding_context: str, document_title: Optional[str]) -> tuple[str, Optional[dict]]:
+    """Nếu surrounding_context quá ngắn/rỗng, thử tra cứu lại đoạn slide thật chứa
+    selected_text từ slide index (nếu đã build). Trả về (context_to_use, retrieved_meta).
+    retrieved_meta = None nếu không tra cứu / không tìm thấy gì -> hành vi giữ nguyên như cũ.
+    Hàm này KHÔNG bao giờ raise ra ngoài — retrieval là tính năng tăng cường (augment),
+    lỗi ở đây không được phép làm hỏng luồng /api/explain chính."""
+    context_word_count = len((surrounding_context or "").split())
+    if context_word_count >= MIN_CONTEXT_WORDS:
+        return surrounding_context, None
+
+    try:
+        retriever = get_retriever()
+        if retriever is None:
+            return surrounding_context, None
+
+        document_id = document_title  # build_index.py dùng tên file làm document_id;
+        # nếu frontend gửi document_title khớp document_id thật thì lọc đúng tài liệu,
+        # còn không thì tìm kiếm trên toàn bộ corpus (document_id=None).
+        results = retriever.search(selected_text, limit=1, document_id=document_id)
+        if not results:
+            results = retriever.search(selected_text, limit=1, document_id=None)
+        if not results:
+            return surrounding_context, None
+
+        best = results[0]
+        chunk = best.to_dict()
+        retrieved_text = str(chunk["content"])[:MAX_RETRIEVED_CONTEXT_CHARS]
+
+        # Nối vào context cũ (nếu có) thay vì ghi đè hoàn toàn, để không mất thông tin
+        # người dùng đã cung cấp.
+        combined = (surrounding_context.strip() + " " + retrieved_text).strip() if surrounding_context else retrieved_text
+
+        return combined, {
+            "chunk_id": chunk["chunk_id"],
+            "document_id": chunk["document_id"],
+            "citation": chunk["citation"],
+            "score": chunk["score"],
+        }
+    except Exception:
+        # Augment thất bại -> quay về hành vi cũ, không ảnh hưởng luồng chính
+        return surrounding_context, None
 
 
 # Cho phép CORS để Web Extension và Frontend HTML giao tiếp được với Backend API
@@ -163,6 +215,27 @@ def detect_terms(req: TermDetectionRequest):
     )
 
 
+# ==================== SLIDE RETRIEVAL (tra cứu ngữ cảnh thật từ slide/transcript) ====================
+
+@app.post("/api/slides/search", response_model=SlideSearchResponse, tags=["Retrieval"])
+def search_slides(req: SlideSearchRequest):
+    """
+    Tra cứu trực tiếp trong slide index (BM25-like) — dùng để debug retrieval,
+    hoặc để frontend tự lấy thêm ngữ cảnh trước khi gọi /api/explain.
+    Trả về danh sách rỗng (không lỗi) nếu index chưa được build bằng build_index.py.
+    """
+    retriever = get_retriever()
+    if retriever is None:
+        return SlideSearchResponse(query=req.query, total=0, results=[])
+
+    results = retriever.search(req.query, limit=req.limit or 4, document_id=req.document_id)
+    return SlideSearchResponse(
+        query=req.query,
+        total=len(results),
+        results=[SlideSearchResult(**r.to_dict()) for r in results]
+    )
+
+
 # ==================== GLOSSARY EXPLAIN API ====================
 # Luồng: Bôi đen -> Giải thích ngữ cảnh -> AI đánh giá độ khó -> Người học chọn kiểu giải thích ->
 #        Sinh ví dụ -> So sánh khái niệm đã biết -> Quiz 1 câu (bước "Lưu tiến độ học" nằm ở /api/quiz/submit)
@@ -188,10 +261,17 @@ def explain_term(req: ExplainRequest):
     if explain_style not in ("tomtat", "vidu", "sosanh", "chuyensau"):
         explain_style = "tomtat"
 
+    # Nếu context người dùng gửi lên quá ngắn/rỗng, thử tự động tra thêm ngữ cảnh
+    # thật từ slide index (an toàn: không tìm thấy / chưa build index -> giữ nguyên
+    # hành vi cũ, không ảnh hưởng gì tới flow hiện tại).
+    effective_context, retrieval_meta = _maybe_retrieve_context(
+        req.selected_text.strip(), req.surrounding_context or "", req.document_title
+    )
+
     # Gọi LLM Client: Groq primary -> Groq fallback -> Gemini fallback -> rule-engine
     parsed_json, used_model = llm_client.explain_term(
         selected_text=req.selected_text.strip(),
-        surrounding_context=req.surrounding_context or "",
+        surrounding_context=effective_context,
         learner_level=level,
         explain_style=explain_style
     )
@@ -234,6 +314,13 @@ def explain_term(req: ExplainRequest):
                 saved_term_id = t_id
                 break
 
+    # Nếu retrieval tìm được citation thật và LLM không tự trả evidence_span,
+    # dùng citation đó làm evidence_span để người học biết nguồn (không ghi đè
+    # nếu model đã tự trích được evidence_span từ context có sẵn).
+    evidence_span = parsed_json.get("evidence_span")
+    if not evidence_span and retrieval_meta:
+        evidence_span = retrieval_meta["citation"]
+
     response_data = ExplainResponse(
         term=parsed_json.get("term", req.selected_text.strip()),
         expanded_form=parsed_json.get("expanded_form"),
@@ -247,7 +334,7 @@ def explain_term(req: ExplainRequest):
         comparison_concept=comparison_concept,
         related_concepts=related_list,
         confidence=parsed_json.get("confidence", "high"),
-        evidence_span=parsed_json.get("evidence_span"),
+        evidence_span=evidence_span,
         clarifying_question=parsed_json.get("clarifying_question"),
         quiz=quiz,
         used_model=used_model,
@@ -267,6 +354,21 @@ def explain_term(req: ExplainRequest):
             "assistant",
             f"Giải thích: {response_data.meaning_in_context} [{used_model}]"
         )
+
+    # Ghi log lượt bôi đen -> giải thích THẬT này vào eval/live_interactions.jsonl
+    # (không raise lỗi ra ngoài — xem eval_logger.py). Dữ liệu này dùng để sau
+    # xây golden set từ chatlog thật, theo guide §1.3 / §2.6.
+    log_explain_interaction(
+        selected_text=req.selected_text.strip(),
+        surrounding_context=req.surrounding_context or "",
+        learner_level=level,
+        explain_style=explain_style,
+        session_id=session.session_id if session else req.session_id,
+        document_title=req.document_title,
+        url=req.url,
+        used_model=used_model,
+        response_data={**response_data.model_dump(), "retrieval_meta": retrieval_meta},
+    )
 
     return response_data
 
